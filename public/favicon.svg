@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 8 88 88">
+  <style>.cap{fill:#2A1D16;stroke:#2A1D16}@media (prefers-color-scheme:dark){.cap{fill:#FFF6EA;stroke:#FFF6EA}}</style>
+  <rect x="18" y="44" width="64" height="44" rx="12" fill="#DB3B22"/>
+  <path d="M36 63 Q40.5 57.5 45 63 M55 63 Q59.5 57.5 64 63" fill="none" stroke="#FFF6EA" stroke-width="4.2" stroke-linecap="round"/>
+  <path d="M44 71 Q50 76.5 56 71" fill="none" stroke="#FFF6EA" stroke-width="4.2" stroke-linecap="round"/>
+  <polygon class="cap" points="50,14 90,30 50,46 10,30" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M80 34 V52" stroke="#15803D" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="80" cy="55" r="5" fill="#15803D"/>
+</svg>
