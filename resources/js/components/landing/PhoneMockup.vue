@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useClock } from '@/composables/useClock';
 import CampusLogo from './CampusLogo.vue';
 
 type Row = [name: string, meta: string, was: string, now: string, ph: string, base: number, decs: number[]];
@@ -16,6 +17,7 @@ const MENU: Row[] = [
 ];
 
 const tick = ref(0);
+const clock = useClock();
 let timer: ReturnType<typeof setInterval> | undefined;
 
 onMounted(() => {
@@ -54,9 +56,9 @@ const showToast = computed(() => loc.value === 2 || loc.value === 3);
 
 <template>
     <div class="box-border h-[612px] w-[300px] flex-none rounded-[48px] bg-[#0E0B09] p-[9px] shadow-[0_40px_80px_-30px_rgba(42,29,22,.55)]" aria-hidden="true">
-        <div class="phone-screen relative box-border flex h-full w-full flex-col gap-3 overflow-hidden rounded-[40px] p-[14px] text-cb-ink">
+        <div class="phone-screen relative box-border flex h-full w-full flex-col gap-2.5 overflow-hidden rounded-[40px] p-[14px] text-cb-ink">
             <div class="relative flex h-[26px] items-center justify-between px-3 text-xs font-bold">
-                <span>17:42</span>
+                <span>{{ clock }}</span>
                 <span class="absolute left-1/2 top-[2px] h-[26px] w-[92px] -translate-x-1/2 rounded-[14px] bg-black" />
                 <span class="text-[10px]">5G</span>
             </div>
@@ -64,7 +66,7 @@ const showToast = computed(() => loc.value === 2 || loc.value === 3);
             <div class="flex items-end justify-between px-1 pt-1">
                 <span class="flex flex-col gap-0.5">
                     <span class="text-[11px] font-semibold text-cb-taupe">Štvrtok · dnes večer</span>
-                    <span class="text-[22px] font-extrabold tracking-[-.02em]">Ahoj, Ema</span>
+                    <span class="text-[22px] font-extrabold tracking-[-.02em]">Ahoj, Gréta</span>
                 </span>
                 <CampusLogo :size="30" :wordmark="false" />
             </div>
@@ -76,8 +78,8 @@ const showToast = computed(() => loc.value === 2 || loc.value === 3);
                     class="flex flex-col gap-px rounded-2xl px-2.5 py-[9px] shadow-[inset_0_1px_0_rgba(255,255,255,.6)] transition-colors [transition-duration:400ms]"
                     :class="t.on ? 'bg-cb-red text-white' : 'bg-white/60 text-cb-ink'"
                 >
-                    <span class="text-xs font-extrabold">{{ t.l }}</span>
-                    <span class="text-[9.5px] opacity-80">{{ t.sub }}</span>
+                    <span class="whitespace-nowrap text-[11.5px] font-extrabold">{{ t.l }}</span>
+                    <span class="whitespace-nowrap text-[9.5px] opacity-80">{{ t.sub }}</span>
                 </span>
             </div>
 
@@ -87,7 +89,7 @@ const showToast = computed(() => loc.value === 2 || loc.value === 3);
                 class="cb-glass shrink-0 overflow-hidden rounded-[22px]"
                 :style="{ animation: 'cbCard .55s cubic-bezier(.2,.8,.2,1) both', animationDelay: c.delay }"
             >
-                <div class="relative h-[74px]" :style="{ background: c.ph }">
+                <div class="relative h-[56px]" :style="{ background: c.ph }">
                     <span
                         class="absolute left-2.5 top-2.5 flex h-[22px] items-center rounded-[11px] px-2 text-[10.5px] font-bold transition-colors [transition-duration:350ms]"
                         :class="c.hit ? 'bg-cb-red text-white' : 'bg-white/85 text-cb-ink'"

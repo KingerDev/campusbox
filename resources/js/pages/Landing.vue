@@ -5,6 +5,7 @@ import IllustrationIsic from '@/components/landing/IllustrationIsic.vue';
 import IllustrationPickup from '@/components/landing/IllustrationPickup.vue';
 import IllustrationReserve from '@/components/landing/IllustrationReserve.vue';
 import PhoneMockup from '@/components/landing/PhoneMockup.vue';
+import VideoPhone from '@/components/landing/VideoPhone.vue';
 import { useLandingMotion } from '@/composables/useLandingMotion';
 import { Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -26,15 +27,17 @@ const hero = computed(() =>
         ? {
               kicker: 'Pre reštaurácie, bistrá, kaviarne a pekárne',
               title: 'Zarobte na jedle, ktoré by ste vyhodili.',
+              accent: '',
               sub: 'Zverejnite nepredané jedlo alebo študentské menu za minútu. Bez mesačného poplatku – províziu platíte len z vydaných objednávok.',
               cta1: { label: 'Zaregistrovať podnik', href: registerUrl },
               cta2: { label: 'Ceny a provízie', href: '#podniky' },
               alt: { label: 'Ste študent? Pozrite appku →', href: '#ako' },
           }
         : {
-              kicker: 'Pilot v Banskej Bystrici · pri UMB',
-              title: 'Dobré jedlo pri kampuse. Za študentské ceny.',
-              sub: 'CampusBox spája študentov s bistrami, pekárňami a kaviarňami v okolí. Zachráň nepredané jedlo až o 70 % lacnejšie alebo si daj zvýhodnené obedové menu.',
+              kicker: 'Pilot v Banskej Bystrici',
+              title: 'Dobré jedlo za študentské ceny.',
+              accent: 'Zachráň ho pred košom.',
+              sub: 'CampusBox spája študentov s bistrami, pekárňami a kaviarňami v celom meste. Zachráň nepredané jedlo až o 70 % lacnejšie alebo si daj zvýhodnené obedové menu.',
               cta1: { label: 'Stiahnuť appku', href: props.appUrl },
               cta2: { label: 'Ako to funguje', href: '#ako' },
               alt: { label: 'Máte podnik? Pridajte sa →', href: '#podniky' },
@@ -89,6 +92,7 @@ const openFaq = ref(0);
 const toggleFaq = (i: number) => (openFaq.value = openFaq.value === i ? -1 : i);
 
 const root = ref<HTMLElement | null>(null);
+const videoPhone = ref<InstanceType<typeof VideoPhone> | null>(null);
 useLandingMotion(root);
 </script>
 
@@ -125,7 +129,10 @@ useLandingMotion(root);
                     <span class="cb-glass flex h-8 items-center gap-2 self-start rounded-2xl px-3.5 text-[13px] font-bold">
                         <span class="h-2 w-2 rounded-full bg-cb-green" />{{ hero.kicker }}
                     </span>
-                    <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:pretty]">{{ hero.title }}</h1>
+                    <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:balance]">
+                        <span class="block [text-wrap:balance]">{{ hero.title }}</span>
+                        <span v-if="hero.accent" class="block text-cb-red [text-wrap:balance]">{{ hero.accent }}</span>
+                    </h1>
                     <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
                     <div class="mt-1.5 flex flex-wrap gap-2.5">
                         <a :href="hero.cta1.href" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[220px]"><span>{{ hero.cta1.label }}</span><span>→</span></a>
@@ -134,9 +141,13 @@ useLandingMotion(root);
                     <a :href="hero.alt.href" class="text-[15px] font-bold text-cb-red no-underline hover:text-cb-red-dark">{{ hero.alt.label }}</a>
                 </div>
 
-                <div data-reveal="1" class="relative flex min-h-[560px] justify-center">
-                    <div class="absolute bottom-5 left-[max(0px,calc(50%-300px))] h-[190px] w-[200px]">
-                        <IllustrationHero />
+                <div data-reveal="1" class="relative mb-20 flex min-h-[560px] justify-center sm:mb-0">
+                    <!-- maskot a taška visia cez spodné rohy telefónu (prekrývajú len rám), na úzkom displeji ostávajú vnútri stĺpca -->
+                    <div class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]">
+                        <IllustrationHero part="mascot" />
+                    </div>
+                    <div class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]">
+                        <IllustrationHero part="bag" />
                     </div>
                     <PhoneMockup />
                 </div>
@@ -208,6 +219,38 @@ useLandingMotion(root);
                             <span class="text-base leading-normal text-cb-brown [text-wrap:pretty]">{{ s.text }}</span>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Video -->
+        <section id="video" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)]">
+            <div class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-center gap-[clamp(32px,5vw,72px)]">
+                <div data-reveal="1" class="flex max-w-[480px] flex-col gap-4">
+                    <span class="cb-eyebrow">Video</span>
+                    <h2 class="m-0 text-[clamp(34px,4.6vw,60px)] font-black leading-[.98] tracking-[-.04em] [text-wrap:balance]">CampusBox za 30 sekúnd</h2>
+                    <p class="m-0 text-lg leading-[1.55] text-cb-brown [text-wrap:pretty]">
+                        Koniec mesiaca, prázdny účet a plné vitríny v bistrách. Pozri si, ako si cez appku rezervuješ zachránené jedlo a vyzdvihneš ho
+                        cestou z prednášky.
+                    </p>
+                    <div class="mt-2 flex flex-wrap gap-3">
+                        <a
+                            :href="appUrl"
+                            class="flex h-[52px] items-center rounded-[26px] bg-cb-red px-6 text-base font-extrabold text-white no-underline hover:text-white"
+                        >
+                            Stiahnuť appku
+                        </a>
+                        <button
+                            type="button"
+                            class="flex h-[52px] items-center rounded-[26px] border-2 border-[rgba(42,29,22,.18)] px-[22px] text-base font-bold text-cb-ink transition-colors hover:border-cb-ink"
+                            @click="videoPhone?.fullscreen()"
+                        >
+                            Pozrieť na celú obrazovku
+                        </button>
+                    </div>
+                </div>
+                <div data-reveal="1" class="flex justify-center">
+                    <VideoPhone ref="videoPhone" src="/video/campusbox-promo.mp4" poster="/video/campusbox-promo-poster.jpg" />
                 </div>
             </div>
         </section>
