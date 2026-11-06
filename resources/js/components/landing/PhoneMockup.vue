@@ -84,7 +84,7 @@ const showToast = computed(() => loc.value === 2 || loc.value === 3);
             <div
                 v-for="c in cards"
                 :key="(isMenu ? 'm' : 'z') + c.name"
-                class="cb-glass overflow-hidden rounded-[22px]"
+                class="cb-glass shrink-0 overflow-hidden rounded-[22px]"
                 :style="{ animation: 'cbCard .55s cubic-bezier(.2,.8,.2,1) both', animationDelay: c.delay }"
             >
                 <div class="relative h-[74px]" :style="{ background: c.ph }">

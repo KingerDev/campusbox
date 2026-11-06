@@ -15,7 +15,11 @@ const props = withDefaults(defineProps<{ audience?: 'studenti' | 'podniky'; appU
 });
 
 const biz = computed(() => props.audience === 'podniky');
-const registerUrl = route('register');
+// Registrácia podnikov zatiaľ nie je spustená – odkazy sú dočasne nefunkčné.
+const registerUrl = '#';
+const preventPlaceholder = (e: MouseEvent) => {
+    if ((e.currentTarget as HTMLAnchorElement).getAttribute('href') === '#') e.preventDefault();
+};
 
 const hero = computed(() =>
     biz.value
@@ -124,7 +128,7 @@ useLandingMotion(root);
                     <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:pretty]">{{ hero.title }}</h1>
                     <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
                     <div class="mt-1.5 flex flex-wrap gap-2.5">
-                        <a :href="hero.cta1.href" class="cb-btn cb-btn-red min-w-[220px]"><span>{{ hero.cta1.label }}</span><span>→</span></a>
+                        <a :href="hero.cta1.href" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[220px]"><span>{{ hero.cta1.label }}</span><span>→</span></a>
                         <a :href="hero.cta2.href" class="cb-btn cb-btn-ink min-w-[200px]"><span>{{ hero.cta2.label }}</span><span>→</span></a>
                     </div>
                     <a :href="hero.alt.href" class="text-[15px] font-bold text-cb-red no-underline hover:text-cb-red-dark">{{ hero.alt.label }}</a>
@@ -241,7 +245,7 @@ useLandingMotion(root);
                             <span class="font-black text-cb-green">✓</span><span>{{ b }}</span>
                         </div>
                     </div>
-                    <a :href="registerUrl" class="cb-btn cb-btn-red min-w-[280px] self-start"><span>Zaregistrovať podnik</span><span>→</span></a>
+                    <a :href="registerUrl" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[280px] self-start"><span>Zaregistrovať podnik</span><span>→</span></a>
                 </div>
 
                 <div class="cb-glass flex flex-col gap-5 rounded-[32px] !bg-white p-[clamp(24px,3vw,36px)]">
@@ -330,7 +334,7 @@ useLandingMotion(root);
                         <div class="flex flex-col gap-2.5">
                             <span class="text-[13px] font-extrabold uppercase tracking-[.06em] text-cb-beige">Podniky</span>
                             <a href="#podniky" class="text-cb-cream no-underline hover:text-white">Ceny a provízie</a>
-                            <a :href="registerUrl" class="text-cb-cream no-underline hover:text-white">Registrácia podniku</a>
+                            <a :href="registerUrl" @click="preventPlaceholder" class="text-cb-cream no-underline hover:text-white">Registrácia podniku</a>
                         </div>
                         <div class="flex flex-col gap-2.5">
                             <span class="text-[13px] font-extrabold uppercase tracking-[.06em] text-cb-beige">Kontakt</span>
