@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsureBusinessMember;
+use App\Http\Middleware\EnsurePanelAbility;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+
+        $middleware->alias([
+            'panel' => EnsureBusinessMember::class,
+            'panel.can' => EnsurePanelAbility::class,
+        ]);
 
         $middleware->web(append: [
             HandleInertiaRequests::class,

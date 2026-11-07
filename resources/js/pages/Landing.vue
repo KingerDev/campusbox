@@ -16,8 +16,8 @@ const props = withDefaults(defineProps<{ audience?: 'studenti' | 'podniky'; appU
 });
 
 const biz = computed(() => props.audience === 'podniky');
-// Registrácia podnikov zatiaľ nie je spustená – odkazy sú dočasne nefunkčné.
-const registerUrl = '#';
+const registerUrl = route('panel.registration');
+// Odkazy, ktoré zatiaľ nikam nevedú (href „#“, napr. appka), neskáču na začiatok stránky.
 const preventPlaceholder = (e: MouseEvent) => {
     if ((e.currentTarget as HTMLAnchorElement).getAttribute('href') === '#') e.preventDefault();
 };
@@ -82,11 +82,26 @@ const benefits = [
 ];
 
 const faq = [
-    ['Kto môže CampusBox používať?', 'Vysokoškolskí študenti s overeným statusom – cez preukaz ISIC alebo univerzitný e‑mail. Status overujeme na začiatku každého semestra.'],
-    ['Je nepredané jedlo bezpečné?', 'Áno. Podniky ponúkajú len jedlo vhodné na konzumáciu a zodpovedajú zaň rovnako ako pri bežnom predaji. Ak niečo nesedí, nahlásiš to v appke a peniaze ti vrátime.'],
-    ['Doručujete?', 'Najčastejšie si jedlo vyzdvihneš osobne – preto sú ceny nízke. Niektoré podniky ponúkajú aj doručenie za poplatok, ktorý si určia samé.'],
-    ['Čo ak nestihnem vyzdvihnutie?', 'Rezerváciu zrušíš zadarmo kedykoľvek do potvrdenia podnikom, potom do 30 minút pred výdajom. Ak podnik jedlo nevydá, peniaze vrátime automaticky.'],
-    ['Koľko to stojí podnik?', 'Žiadny mesačný poplatok. Provízia 10–12 % pri záchrane jedla a 5–7 % pri študentskom menu, len z vydaných objednávok.'],
+    [
+        'Kto môže CampusBox používať?',
+        'Vysokoškolskí študenti s overeným statusom – cez preukaz ISIC alebo univerzitný e‑mail. Status overujeme na začiatku každého semestra.',
+    ],
+    [
+        'Je nepredané jedlo bezpečné?',
+        'Áno. Podniky ponúkajú len jedlo vhodné na konzumáciu a zodpovedajú zaň rovnako ako pri bežnom predaji. Ak niečo nesedí, nahlásiš to v appke a peniaze ti vrátime.',
+    ],
+    [
+        'Doručujete?',
+        'Najčastejšie si jedlo vyzdvihneš osobne – preto sú ceny nízke. Niektoré podniky ponúkajú aj doručenie za poplatok, ktorý si určia samé.',
+    ],
+    [
+        'Čo ak nestihnem vyzdvihnutie?',
+        'Rezerváciu zrušíš zadarmo kedykoľvek do potvrdenia podnikom, potom do 30 minút pred výdajom. Ak podnik jedlo nevydá, peniaze vrátime automaticky.',
+    ],
+    [
+        'Koľko to stojí podnik?',
+        'Žiadny mesačný poplatok. Provízia 10–12 % pri záchrane jedla a 5–7 % pri študentskom menu, len z vydaných objednávok.',
+    ],
 ];
 const openFaq = ref(0);
 const toggleFaq = (i: number) => (openFaq.value = openFaq.value === i ? -1 : i);
@@ -101,7 +116,9 @@ useLandingMotion(root);
 
     <div ref="root" class="cb-landing min-h-screen bg-cb-cream font-archivo text-cb-ink antialiased">
         <!-- Header -->
-        <header class="sticky top-0 z-20 border-b-[1.5px] border-[rgba(120,80,50,.14)] bg-[rgba(255,246,234,.78)] backdrop-blur-[18px] backdrop-saturate-[1.6]">
+        <header
+            class="sticky top-0 z-20 border-b-[1.5px] border-[rgba(120,80,50,.14)] bg-[rgba(255,246,234,.78)] backdrop-blur-[18px] backdrop-saturate-[1.6]"
+        >
             <div class="cb-container flex h-[72px] items-center justify-between gap-5">
                 <a href="#top" class="no-underline" aria-label="CampusBox – domov"><CampusLogo /></a>
                 <nav class="flex flex-wrap items-center justify-end gap-[clamp(12px,2.4vw,28px)]">
@@ -135,18 +152,28 @@ useLandingMotion(root);
                     </h1>
                     <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
                     <div class="mt-1.5 flex flex-wrap gap-2.5">
-                        <a :href="hero.cta1.href" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[220px]"><span>{{ hero.cta1.label }}</span><span>→</span></a>
-                        <a :href="hero.cta2.href" class="cb-btn cb-btn-ink min-w-[200px]"><span>{{ hero.cta2.label }}</span><span>→</span></a>
+                        <a :href="hero.cta1.href" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[220px]"
+                            ><span>{{ hero.cta1.label }}</span
+                            ><span>→</span></a
+                        >
+                        <a :href="hero.cta2.href" class="cb-btn cb-btn-ink min-w-[200px]"
+                            ><span>{{ hero.cta2.label }}</span
+                            ><span>→</span></a
+                        >
                     </div>
                     <a :href="hero.alt.href" class="text-[15px] font-bold text-cb-red no-underline hover:text-cb-red-dark">{{ hero.alt.label }}</a>
                 </div>
 
                 <div data-reveal="1" class="relative mb-20 flex min-h-[560px] justify-center sm:mb-0">
                     <!-- maskot a taška visia cez spodné rohy telefónu (prekrývajú len rám), na úzkom displeji ostávajú vnútri stĺpca -->
-                    <div class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]">
+                    <div
+                        class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]"
+                    >
                         <IllustrationHero part="mascot" />
                     </div>
-                    <div class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]">
+                    <div
+                        class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]"
+                    >
                         <IllustrationHero part="bag" />
                     </div>
                     <PhoneMockup />
@@ -188,7 +215,9 @@ useLandingMotion(root);
                         <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-[rgba(21,128,61,.25)] pt-4">
                             <span class="flex flex-col">
                                 <span class="text-[13px] font-bold text-cb-green">od</span>
-                                <span class="text-[44px] font-black leading-none tracking-[-.04em] text-cb-green" data-count="8.5|5.5|2| €">5,50 €</span>
+                                <span class="text-[44px] font-black leading-none tracking-[-.04em] text-cb-green" data-count="8.5|5.5|2| €"
+                                    >5,50 €</span
+                                >
                             </span>
                             <span class="text-sm font-bold">Obed · 11:00–15:00</span>
                         </div>
@@ -205,11 +234,7 @@ useLandingMotion(root);
                     <h2 class="cb-h2">Tri kroky od prednášky k jedlu.</h2>
                 </div>
                 <div data-stagger="1" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
-                    <div
-                        v-for="s in steps"
-                        :key="s.n"
-                        class="cb-glass cb-lift step-card flex flex-col overflow-hidden rounded-[32px]"
-                    >
+                    <div v-for="s in steps" :key="s.n" class="cb-glass cb-lift step-card flex flex-col overflow-hidden rounded-[32px]">
                         <div class="relative h-60" :style="{ background: s.bg }">
                             <component :is="s.art" />
                         </div>
@@ -225,10 +250,14 @@ useLandingMotion(root);
 
         <!-- Video -->
         <section id="video" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)]">
-            <div class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-center gap-[clamp(32px,5vw,72px)]">
+            <div
+                class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-center gap-[clamp(32px,5vw,72px)]"
+            >
                 <div data-reveal="1" class="flex max-w-[480px] flex-col gap-4">
                     <span class="cb-eyebrow">Video</span>
-                    <h2 class="m-0 text-[clamp(34px,4.6vw,60px)] font-black leading-[.98] tracking-[-.04em] [text-wrap:balance]">CampusBox za 30 sekúnd</h2>
+                    <h2 class="m-0 text-[clamp(34px,4.6vw,60px)] font-black leading-[.98] tracking-[-.04em] [text-wrap:balance]">
+                        CampusBox za 30 sekúnd
+                    </h2>
                     <p class="m-0 text-lg leading-[1.55] text-cb-brown [text-wrap:pretty]">
                         Koniec mesiaca, prázdny účet a plné vitríny v bistrách. Pozri si, ako si cez appku rezervuješ zachránené jedlo a vyzdvihneš ho
                         cestou z prednášky.
@@ -272,7 +301,10 @@ useLandingMotion(root);
 
         <!-- Pre podniky -->
         <section id="podniky" class="scroll-mt-[72px]">
-            <div data-stagger="1" class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,460px),1fr))] items-start gap-10">
+            <div
+                data-stagger="1"
+                class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,460px),1fr))] items-start gap-10"
+            >
                 <div class="flex flex-col gap-[22px]">
                     <span class="cb-eyebrow">Pre podniky</span>
                     <h2 class="cb-h2">Jedlo, ktoré vám zostane, si kúpia študenti.</h2>
@@ -288,7 +320,7 @@ useLandingMotion(root);
                             <span class="font-black text-cb-green">✓</span><span>{{ b }}</span>
                         </div>
                     </div>
-                    <a :href="registerUrl" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[280px] self-start"><span>Zaregistrovať podnik</span><span>→</span></a>
+                    <a :href="registerUrl" class="cb-btn cb-btn-red min-w-[280px] self-start"><span>Zaregistrovať podnik</span><span>→</span></a>
                 </div>
 
                 <div class="cb-glass flex flex-col gap-5 rounded-[32px] !bg-white p-[clamp(24px,3vw,36px)]">
@@ -326,7 +358,10 @@ useLandingMotion(root);
 
         <!-- FAQ -->
         <section id="faq" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)]">
-            <div data-stagger="1" class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] items-start gap-10">
+            <div
+                data-stagger="1"
+                class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] items-start gap-10"
+            >
                 <div class="flex flex-col gap-3">
                     <span class="cb-eyebrow">Otázky</span>
                     <h2 class="cb-h2">Čo sa nás pýtate.</h2>
@@ -377,7 +412,8 @@ useLandingMotion(root);
                         <div class="flex flex-col gap-2.5">
                             <span class="text-[13px] font-extrabold uppercase tracking-[.06em] text-cb-beige">Podniky</span>
                             <a href="#podniky" class="text-cb-cream no-underline hover:text-white">Ceny a provízie</a>
-                            <a :href="registerUrl" @click="preventPlaceholder" class="text-cb-cream no-underline hover:text-white">Registrácia podniku</a>
+                            <a :href="registerUrl" class="text-cb-cream no-underline hover:text-white">Registrácia podniku</a>
+                            <a :href="route('login')" class="text-cb-cream no-underline hover:text-white">Prihlásenie do panela</a>
                         </div>
                         <div class="flex flex-col gap-2.5">
                             <span class="text-[13px] font-extrabold uppercase tracking-[.06em] text-cb-beige">Kontakt</span>

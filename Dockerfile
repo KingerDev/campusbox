@@ -24,4 +24,5 @@ WORKDIR /var/www/html
 COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
 COPY --chown=www-data:www-data . .
 COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
-RUN composer dump-autoload --optimize --no-dev
+RUN composer dump-autoload --optimize --no-dev \
+    && php artisan storage:link

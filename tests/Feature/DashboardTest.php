@@ -12,16 +12,16 @@ class DashboardTest extends TestCase
 
     public function test_guests_are_redirected_to_the_login_page()
     {
-        $response = $this->get('/dashboard');
-        $response->assertRedirect('/login');
+        $this->get('/dashboard')->assertRedirect('/login');
     }
 
-    public function test_authenticated_users_can_visit_the_dashboard()
+    public function test_dashboard_redirects_to_the_business_panel()
     {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        $this->actingAs(User::factory()->create())->get('/dashboard')->assertRedirect('/panel');
+    }
 
-        $response = $this->get('/dashboard');
-        $response->assertStatus(200);
+    public function test_user_without_business_is_sent_to_registration()
+    {
+        $this->actingAs(User::factory()->create())->get('/panel')->assertRedirect(route('panel.registration'));
     }
 }

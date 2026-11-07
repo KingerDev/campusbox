@@ -10,9 +10,10 @@ Route::get('/', function (Request $request) {
     ]);
 })->name('home');
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Starter kit presmerúva po prihlásení na „dashboard“ – to je panel podniku.
+Route::redirect('dashboard', '/panel')->middleware('auth')->name('dashboard');
+
+require __DIR__.'/panel.php';
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
