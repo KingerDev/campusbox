@@ -32,6 +32,16 @@ const props = defineProps<{
 const type = ref<TypeKey>(props.type);
 const rows = reactive<Record<TypeKey, Row[]>>(JSON.parse(JSON.stringify(props.rows)));
 const slot = reactive<Record<TypeKey, string>>({ zachrana: props.slots.zachrana.value, menu: props.slots.menu.value });
+// Okno výdaja ako „od–do“ (voľne nastaviteľné, predvoľby sú len skratky).
+const from = computed({
+    get: () => slot[type.value].split('–')[0] ?? '',
+    set: (v: string) => (slot[type.value] = `${v}–${slot[type.value].split('–')[1] ?? ''}`),
+});
+const to = computed({
+    get: () => slot[type.value].split('–')[1] ?? '',
+    set: (v: string) => (slot[type.value] = `${slot[type.value].split('–')[0] ?? ''}–${v}`),
+});
+const slotError = computed(() => form.errors.slot || (from.value && to.value && to.value <= from.value ? 'Koniec výdaja musí byť neskôr ako začiatok.' : ''));
 const delivery = reactive({ ...props.delivery });
 
 const current = computed(() => rows[type.value]);
@@ -94,9 +104,27 @@ const TYPES: [TypeKey, string, string][] = [
             </button>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-            <span class="mr-1 text-[13px] font-bold">Vyzdvihnutie</span>
-            <PChip v-for="s in slots[type].options" :key="s" size="lg" :on="slot[type] === s" @click="slot[type] = s">{{ s }}</PChip>
+        <div class="pcard flex flex-col gap-3 rounded-[26px] px-[18px] py-4">
+            <span class="flex flex-col gap-0.5">
+                <span class="text-[15.5px] font-extrabold">Kedy si študenti môžu jedlo vyzdvihnúť</span>
+                <span class="text-[12.5px] text-cb-taupe">
+                    {{ type === 'menu' ? 'Obedové okno, počas ktorého vydávate študentské menu.' : 'Zvyčajne pred zatvorením, keď viete, čo zostalo.' }}
+                    Študenti uvidia tento čas pri ponuke a v potvrdení objednávky.
+                </span>
+            </span>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+                <span class="flex items-center gap-2 text-sm font-bold">
+                    od
+                    <input v-model="from" type="time" aria-label="Výdaj od" class="pinput h-11 w-[116px] rounded-full px-3.5 font-bold" />
+                    do
+                    <input v-model="to" type="time" aria-label="Výdaj do" class="pinput h-11 w-[116px] rounded-full px-3.5 font-bold" />
+                </span>
+                <span class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-xs font-bold text-cb-taupe">Rýchla voľba:</span>
+                    <PChip v-for="s in slots[type].options" :key="s" size="sm" :on="slot[type] === s" @click="slot[type] = s">{{ s }}</PChip>
+                </span>
+            </div>
+            <span v-if="slotError" class="text-sm font-bold text-cb-red">{{ slotError }}</span>
         </div>
 
         <div class="flex flex-col gap-2.5">

@@ -4,11 +4,13 @@ import IllustrationHero from '@/components/landing/IllustrationHero.vue';
 import IllustrationIsic from '@/components/landing/IllustrationIsic.vue';
 import IllustrationPickup from '@/components/landing/IllustrationPickup.vue';
 import IllustrationReserve from '@/components/landing/IllustrationReserve.vue';
-import PhoneMockup from '@/components/landing/PhoneMockup.vue';
+import LandingPhone, { type PhoneScreen } from '@/components/landing/LandingPhone.vue';
 import VideoPhone from '@/components/landing/VideoPhone.vue';
+import { useClock } from '@/composables/useClock';
 import { useLandingMotion } from '@/composables/useLandingMotion';
+import { storyMetrics, useScrollStory } from '@/composables/useScrollStory';
 import { Head } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 const props = withDefaults(defineProps<{ audience?: 'studenti' | 'podniky'; appUrl?: string }>(), {
     audience: 'studenti',
@@ -35,8 +37,8 @@ const hero = computed(() =>
           }
         : {
               kicker: 'Pilot v Banskej Bystrici',
-              title: 'Dobré jedlo za študentské ceny.',
-              accent: 'Zachráň ho pred košom.',
+              title: 'Zachráň dobré jedlo. Za študentské ceny.',
+              accent: '',
               sub: 'CampusBox spája študentov s bistrami, pekárňami a kaviarňami v celom meste. Zachráň nepredané jedlo až o 70 % lacnejšie alebo si daj zvýhodnené obedové menu.',
               cta1: { label: 'Stiahnuť appku', href: props.appUrl },
               cta2: { label: 'Ako to funguje', href: '#ako' },
@@ -46,6 +48,10 @@ const hero = computed(() =>
 
 const steps = [
     {
+        key: 'overenie' as PhoneScreen,
+        dx: -40,
+        r: -2.5,
+        arrow: 'right',
         n: '01',
         title: 'Over sa ako študent',
         text: 'Stačí preukaz ISIC alebo univerzitný e‑mail. Ceny v CampusBoxe sú len pre aktívnych vysokoškolákov.',
@@ -53,6 +59,10 @@ const steps = [
         art: IllustrationIsic,
     },
     {
+        key: 'platba' as PhoneScreen,
+        dx: 40,
+        r: 2.5,
+        arrow: 'left',
         n: '02',
         title: 'Vyber a rezervuj',
         text: 'Pozri, čo je dnes v okolí, a zaplať v appke kartou alebo cez Apple Pay či Google Pay.',
@@ -60,6 +70,10 @@ const steps = [
         art: IllustrationReserve,
     },
     {
+        key: 'qr' as PhoneScreen,
+        dx: -40,
+        r: -2.5,
+        arrow: 'right',
         n: '03',
         title: 'Vyzdvihni alebo si nechaj doniesť',
         text: 'Pri pulte ukážeš QR kód. Ak podnik doručuje, jedlo ti prinesú za poplatok, ktorý určí sám.',
@@ -84,7 +98,7 @@ const benefits = [
 const faq = [
     [
         'Kto môže CampusBox používať?',
-        'Vysokoškolskí študenti s overeným statusom – cez preukaz ISIC alebo univerzitný e‑mail. Status overujeme na začiatku každého semestra.',
+        'Vysokoškolskí študenti s overeným statusom – cez preukaz ISIC alebo univerzitný e‑mail. Status overujeme raz za rok, na začiatku akademického roka.',
     ],
     [
         'Je nepredané jedlo bezpečné?',
@@ -109,6 +123,62 @@ const toggleFaq = (i: number) => (openFaq.value = openFaq.value === i ? -1 : i);
 const root = ref<HTMLElement | null>(null);
 const videoPhone = ref<InstanceType<typeof VideoPhone> | null>(null);
 useLandingMotion(root);
+
+// ---- Putujúci mobil (desktop ≥ 980 px) ----
+const story = ref<HTMLElement | null>(null);
+const mover = ref<HTMLElement | null>(null);
+const clipRect = ref<SVGRectElement | null>(null);
+const { desk, metrics, screen, route: storyRoute, dots, refresh } = useScrollStory(story, mover, clipRect);
+watch(desk, () => nextTick(refresh));
+
+const active = (k: string) => desk.value && screen.value === k;
+const phoneScreen = computed<PhoneScreen>(() => (screen.value === 'video' ? 'qr' : (screen.value as PhoneScreen)));
+
+/**
+ * Počiatočná poloha mobilu pred prvým výpočtom (vpravo v hero).
+ * Zapisuje sa do DOM len raz pri pripojení – nie cez :style. Vue by inak pri každom prekreslení
+ * (zmena obrazovky, krúžky trasy) vrátil transform na túto hodnotu a mobil by pri prechode medzi kartami poskakoval.
+ */
+const initialTransform = () => {
+    const w = window.innerWidth;
+    const pad = Math.min(48, Math.max(20, w * 0.04));
+    const span0 = Math.max(0, Math.min(w, 1200) - 2 * pad - 300);
+    const m = storyMetrics(window.innerHeight);
+    return `translate3d(${Math.round(span0)}px,${-(612 - m.ph) / 2}px,0) rotate(-2deg) scale(${m.sc})`;
+};
+watch(mover, (el) => {
+    if (el && !el.style.transform) el.style.transform = initialTransform();
+});
+
+// ---- Video na poslednej zastávke ----
+const clock = useClock();
+const overlayVideo = ref<HTMLVideoElement | null>(null);
+const overlayMuted = ref(true);
+watch(screen, (k) => k !== 'video' && (overlayMuted.value = true));
+const playWithSound = () => {
+    const v = overlayVideo.value;
+    if (!v) return;
+    overlayMuted.value = false;
+    v.currentTime = 0;
+    v.muted = false;
+    v.play().catch(() => {});
+};
+const openFullscreen = () => {
+    if (desk.value && overlayVideo.value) {
+        playWithSound();
+        overlayVideo.value.requestFullscreen?.().catch(() => window.open('/video/campusbox-promo.mp4', '_blank'));
+    } else if (videoPhone.value) videoPhone.value.fullscreen();
+    else window.open('/video/campusbox-promo.mp4', '_blank');
+};
+
+const ring = (k: string, color: string) =>
+    active(k)
+        ? `0 0 0 3px #FFF6EA, 0 0 0 6px ${color}, 0 34px 60px -28px rgba(80,25,5,.5)`
+        : '0 0 0 0 rgba(255,246,234,0), 0 0 0 0 rgba(0,0,0,0), 0 0 0 0 rgba(0,0,0,0)';
+const glass = (k: string) =>
+    active(k)
+        ? 'inset 0 1px 0 rgba(255,255,255,.9),0 0 0 2px #DB3B22,0 30px 50px -24px rgba(60,25,5,.45)'
+        : 'inset 0 1px 0 rgba(255,255,255,.9),0 0 0 0 rgba(219,59,34,0),0 18px 40px -22px rgba(60,25,5,.4)';
 </script>
 
 <template>
@@ -137,152 +207,345 @@ useLandingMotion(root);
             </div>
         </header>
 
-        <!-- Hero -->
-        <section id="top" class="hero-bg relative overflow-hidden">
-            <div
-                class="cb-container grid grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] items-center gap-12 pb-[clamp(48px,7vw,96px)] pt-[clamp(40px,7vw,88px)]"
-            >
-                <div data-stagger="1" class="flex max-w-[600px] flex-col gap-[22px]">
-                    <span class="cb-glass flex h-8 items-center gap-2 self-start rounded-2xl px-3.5 text-[13px] font-bold">
-                        <span class="h-2 w-2 rounded-full bg-cb-green" />{{ hero.kicker }}
-                    </span>
-                    <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:balance]">
-                        <span class="block [text-wrap:balance]">{{ hero.title }}</span>
-                        <span v-if="hero.accent" class="block text-cb-red [text-wrap:balance]">{{ hero.accent }}</span>
-                    </h1>
-                    <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
-                    <div class="mt-1.5 flex flex-wrap gap-2.5">
-                        <a :href="hero.cta1.href" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[220px]"
-                            ><span>{{ hero.cta1.label }}</span
-                            ><span>→</span></a
-                        >
-                        <a :href="hero.cta2.href" class="cb-btn cb-btn-ink min-w-[200px]"
-                            ><span>{{ hero.cta2.label }}</span
-                            ><span>→</span></a
-                        >
-                    </div>
-                    <a :href="hero.alt.href" class="text-[15px] font-bold text-cb-red no-underline hover:text-cb-red-dark">{{ hero.alt.label }}</a>
-                </div>
+        <div ref="story" data-lp-story class="relative">
+            <!-- Trasa za mobilom (desktop) -->
+            <svg v-if="desk" aria-hidden="true" class="pointer-events-none absolute left-0 top-0 z-[1] h-full w-full overflow-visible">
+                <defs>
+                    <clipPath id="lpDone"><rect ref="clipRect" x="0" y="0" width="100%" height="0" /></clipPath>
+                </defs>
+                <path :d="storyRoute" fill="none" stroke="rgba(42,29,22,.26)" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 12.9" />
+                <path
+                    :d="storyRoute"
+                    clip-path="url(#lpDone)"
+                    fill="none"
+                    stroke="#DB3B22"
+                    stroke-width="4.5"
+                    stroke-linecap="round"
+                    stroke-dasharray="0.1 12.9"
+                    class="lp-march"
+                />
+                <circle
+                    v-for="(o, i) in dots"
+                    :key="i"
+                    :cx="o.x"
+                    :cy="o.y"
+                    r="7"
+                    :fill="o.on ? '#DB3B22' : '#FFF6EA'"
+                    :stroke="o.on ? '#FFF6EA' : 'rgba(42,29,22,.35)'"
+                    stroke-width="3"
+                    class="transition-[fill,stroke] duration-300"
+                />
+            </svg>
 
-                <div data-reveal="1" class="relative mb-20 flex min-h-[560px] justify-center sm:mb-0">
-                    <!-- maskot a taška visia cez spodné rohy telefónu (prekrývajú len rám), na úzkom displeji ostávajú vnútri stĺpca -->
-                    <div
-                        class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]"
-                    >
-                        <IllustrationHero part="mascot" />
-                    </div>
-                    <div
-                        class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]"
-                    >
-                        <IllustrationHero part="bag" />
-                    </div>
-                    <PhoneMockup />
-                </div>
-            </div>
-        </section>
-
-        <!-- Dve kategórie -->
-        <section class="border-t-2 border-[rgba(120,80,50,.14)]">
-            <div class="cb-container cb-section-pad flex flex-col gap-9">
-                <div data-reveal="1" class="flex max-w-[760px] flex-col gap-3">
-                    <span class="cb-eyebrow">Dve kategórie</span>
-                    <h2 class="cb-h2">Večer záchrana, cez obed menu.</h2>
-                    <p class="m-0 text-lg leading-normal text-cb-brown [text-wrap:pretty]">
-                        V appke sú oddelené, aby si hneď videl, čo je časovo obmedzená ponuka a čo pravidelné študentské stravovanie.
-                    </p>
-                </div>
-                <div data-stagger="1" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] gap-4">
-                    <div class="cb-lift flex flex-col gap-3.5 rounded-[32px] bg-cb-red p-[clamp(24px,3vw,36px)] text-white">
-                        <span class="text-sm font-bold opacity-85">Hlavná služba</span>
-                        <span class="text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Záchrana jedla</span>
-                        <span class="text-[16.5px] leading-normal [text-wrap:pretty]">
-                            Čo podniku na konci dňa zostane – bezpečné a čerstvé, len lacnejšie. Balíčky prekvapenia aj konkrétne jedlá.
+            <!-- Hero -->
+            <section id="top" data-step="home" data-x="1" data-r="-2" class="hero-bg relative overflow-hidden">
+                <div class="lp-wrap lp-hero-grid" :style="{ minHeight: desk ? metrics.H - 72 + 'px' : undefined }">
+                    <div data-stagger="1" class="flex max-w-[600px] flex-col gap-[22px]">
+                        <span class="cb-glass flex h-8 items-center gap-2 self-start rounded-2xl px-3.5 text-[13px] font-bold">
+                            <span class="h-2 w-2 rounded-full bg-cb-green" />{{ hero.kicker }}
                         </span>
-                        <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-white/35 pt-4">
-                            <span class="flex flex-col">
-                                <span class="text-[13px] font-bold opacity-85">od</span>
-                                <span class="text-[44px] font-black leading-none tracking-[-.04em]" data-count="9|1.9|2| €">1,90 €</span>
-                            </span>
-                            <span class="text-sm font-bold">Večer · kým sa neminie</span>
+                        <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:pretty]">
+                            <span class="block [text-wrap:pretty]">{{ hero.title }}</span>
+                            <span v-if="hero.accent" class="block text-cb-red [text-wrap:balance]">{{ hero.accent }}</span>
+                        </h1>
+                        <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
+                        <div class="mt-1.5 flex flex-wrap gap-2.5">
+                            <a :href="hero.cta1.href" @click="preventPlaceholder" class="cb-btn cb-btn-red min-w-[220px]"
+                                ><span>{{ hero.cta1.label }}</span
+                                ><span>→</span></a
+                            >
+                            <a :href="hero.cta2.href" class="cb-btn cb-btn-ink min-w-[200px]"
+                                ><span>{{ hero.cta2.label }}</span
+                                ><span>→</span></a
+                            >
+                        </div>
+                        <a :href="hero.alt.href" class="text-[15px] font-bold text-cb-red no-underline hover:text-cb-red-dark">{{
+                            hero.alt.label
+                        }}</a>
+                    </div>
+
+                    <!-- Desktop: prázdna bunka (mobil je v overlayi), vľavo od nej maskot s taškou -->
+                    <div v-if="desk" data-reveal="1" class="relative flex items-center justify-center" :style="{ minHeight: metrics.ph + 'px' }">
+                        <div
+                            class="lp-hero-box pointer-events-none absolute bottom-5 flex h-[190px] w-[200px] items-end justify-center"
+                            aria-hidden="true"
+                        >
+                            <div class="aspect-[160/245] h-[170px] flex-none"><IllustrationHero part="mascot" /></div>
+                            <div class="-ml-3 aspect-[140/236] h-[160px] flex-none"><IllustrationHero part="bag" /></div>
                         </div>
                     </div>
-                    <div class="cb-lift flex flex-col gap-3.5 rounded-[32px] bg-cb-mint p-[clamp(24px,3vw,36px)] text-cb-ink">
-                        <span class="text-sm font-bold text-cb-green">Každý pracovný deň</span>
-                        <span class="text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Študentské menu</span>
-                        <span class="text-[16.5px] leading-normal text-[#2F3A2F] [text-wrap:pretty]">
-                            Bežné obedové menu so študentskou cenou. Polievka a hlavné jedlo v podnikoch pri fakultách a internátoch.
-                        </span>
-                        <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-[rgba(21,128,61,.25)] pt-4">
-                            <span class="flex flex-col">
-                                <span class="text-[13px] font-bold text-cb-green">od</span>
-                                <span class="text-[44px] font-black leading-none tracking-[-.04em] text-cb-green" data-count="8.5|5.5|2| €"
-                                    >5,50 €</span
+                    <!-- Mobil / tablet: mobil priamo v bunke, maskot a taška pod ním -->
+                    <div v-else data-reveal="1" class="relative mb-20 flex min-h-[560px] justify-center sm:mb-0">
+                        <div
+                            class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]"
+                        >
+                            <IllustrationHero part="mascot" />
+                        </div>
+                        <div
+                            class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]"
+                        >
+                            <IllustrationHero part="bag" />
+                        </div>
+                        <LandingPhone screen="home" mode="live" />
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dve kategórie -->
+            <section class="border-t-2 border-[rgba(120,80,50,.14)]">
+                <div class="lp-wrap cb-section-pad flex flex-col gap-9">
+                    <div data-reveal="1" class="lp-head flex max-w-[760px] flex-col gap-3">
+                        <span class="cb-eyebrow">Dve kategórie</span>
+                        <h2 class="cb-h2">Večer záchrana, cez obed menu.</h2>
+                        <p class="m-0 text-lg leading-normal text-cb-brown [text-wrap:pretty]">
+                            V appke sú oddelené, aby si hneď videl, čo je časovo obmedzená ponuka a čo pravidelné študentské stravovanie.
+                        </p>
+                    </div>
+                    <div class="lp-kat-grid">
+                        <div class="lp-step" data-step="zachrana" data-x=".5" data-dx="-24" data-s=".94" data-r="-3" data-reveal="1">
+                            <div
+                                class="lp-card lp-lift relative flex flex-col gap-3.5 rounded-[32px] bg-cb-red p-[clamp(24px,3vw,36px)] text-white"
+                                :style="{ boxShadow: ring('zachrana', '#DB3B22') }"
+                            >
+                                <span class="lp-chip lp-chip-pos" aria-hidden="true" :style="{ opacity: active('zachrana') ? 1 : 0 }"
+                                    >Teraz v appke →</span
                                 >
-                            </span>
-                            <span class="text-sm font-bold">Obed · 11:00–15:00</span>
+                                <span class="text-sm font-bold opacity-85">Hlavná služba</span>
+                                <span class="text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Záchrana jedla</span>
+                                <span class="text-[16.5px] leading-normal [text-wrap:pretty]">
+                                    Čo podniku na konci dňa zostane – bezpečné a čerstvé, len lacnejšie. Balíčky prekvapenia aj konkrétne jedlá.
+                                </span>
+                                <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-white/35 pt-4">
+                                    <span class="flex flex-col">
+                                        <span class="text-[13px] font-bold opacity-85">od</span>
+                                        <span class="text-[44px] font-black leading-none tracking-[-.04em]" data-count="9|1.9|2| €">1,90 €</span>
+                                    </span>
+                                    <span class="text-sm font-bold">Večer · kým sa neminie</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lp-step" data-step="menu" data-x=".5" data-dx="24" data-s=".94" data-r="3" data-reveal="1">
+                            <div
+                                class="lp-card lp-lift relative flex flex-col gap-3.5 rounded-[32px] bg-cb-mint p-[clamp(24px,3vw,36px)] text-cb-ink"
+                                :style="{ boxShadow: ring('menu', '#15803D') }"
+                            >
+                                <span class="lp-chip lp-chip-pos" aria-hidden="true" :style="{ opacity: active('menu') ? 1 : 0 }"
+                                    >← Teraz v appke</span
+                                >
+                                <span class="text-sm font-bold text-cb-green">Každý pracovný deň</span>
+                                <span class="text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Študentské menu</span>
+                                <span class="text-[16.5px] leading-normal text-[#2F3A2F] [text-wrap:pretty]">
+                                    Bežné obedové menu so študentskou cenou. Polievka a hlavné jedlo v podnikoch pri fakultách a internátoch.
+                                </span>
+                                <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-[rgba(21,128,61,.25)] pt-4">
+                                    <span class="flex flex-col">
+                                        <span class="text-[13px] font-bold text-cb-green">od</span>
+                                        <span class="text-[44px] font-black leading-none tracking-[-.04em] text-cb-green" data-count="8.5|5.5|2| €"
+                                            >5,50 €</span
+                                        >
+                                    </span>
+                                    <span class="text-sm font-bold">Obed · 11:00–15:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lp-stk" aria-hidden="true" data-reveal="1">
+                            <span class="block rotate-[6deg]"
+                                ><span
+                                    class="lp-float flex h-12 items-center gap-2.5 whitespace-nowrap rounded-[14px] bg-cb-green pl-3.5 pr-[18px] text-[21px] font-black tracking-[-.02em] text-white shadow-[0_16px_30px_-14px_rgba(21,128,61,.65)] [animation-duration:3.6s]"
+                                    ><span class="h-[9px] w-[9px] rounded-full bg-cb-mint" />až −70 %</span
+                                ></span
+                            >
+                            <span class="mr-9 block -rotate-[4deg]"
+                                ><span class="lp-pill lp-float [animation-delay:.6s] [animation-duration:4.2s]"
+                                    ><span class="lp-dot bg-cb-red" />Len pre vysokoškolákov</span
+                                ></span
+                            >
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Ako to funguje -->
-        <section id="ako" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)] bg-cb-sand">
-            <div class="cb-container cb-section-pad flex flex-col gap-9">
-                <div data-reveal="1" class="flex max-w-[760px] flex-col gap-3">
-                    <span class="cb-eyebrow">Ako to funguje</span>
-                    <h2 class="cb-h2">Tri kroky od prednášky k jedlu.</h2>
-                </div>
-                <div data-stagger="1" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
-                    <div v-for="s in steps" :key="s.n" class="cb-glass cb-lift step-card flex flex-col overflow-hidden rounded-[32px]">
-                        <div class="relative h-60" :style="{ background: s.bg }">
-                            <component :is="s.art" />
+            <!-- Ako to funguje -->
+            <section id="ako" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)] bg-cb-sand">
+                <div class="lp-wrap cb-section-pad flex flex-col gap-9">
+                    <div data-reveal="1" class="lp-head flex max-w-[760px] flex-col gap-3">
+                        <span class="cb-eyebrow">Ako to funguje</span>
+                        <h2 class="cb-h2">Tri kroky od prednášky k jedlu.</h2>
+                    </div>
+                    <div class="lp-ako-grid">
+                        <div
+                            v-for="s in steps"
+                            :key="s.n"
+                            class="lp-step"
+                            :data-step="s.key"
+                            data-x=".5"
+                            :data-dx="s.dx"
+                            data-s=".9"
+                            :data-r="s.r"
+                            data-reveal="1"
+                        >
+                            <div
+                                class="lp-card lp-lift relative flex flex-col overflow-hidden rounded-[32px] backdrop-blur-[22px] backdrop-saturate-[1.7] [transition:box-shadow_.35s_ease,background_.35s_ease,transform_.2s_ease]"
+                                :style="{ background: active(s.key) ? 'rgba(255,255,255,.94)' : 'rgba(255,255,255,.6)', boxShadow: glass(s.key) }"
+                            >
+                                <div class="lp-ako-vis relative overflow-hidden" :style="{ background: s.bg }">
+                                    <component :is="s.art" v-if="desk" />
+                                    <div v-else class="absolute left-1/2 top-[26px] -ml-[150px] h-[612px] w-[300px] origin-top scale-[.62]">
+                                        <LandingPhone :screen="s.key" mode="preview" />
+                                    </div>
+                                </div>
+                                <span class="lp-chip absolute right-4 top-4" aria-hidden="true" :style="{ opacity: active(s.key) ? 1 : 0 }">
+                                    {{ s.arrow === 'right' ? 'Teraz v appke →' : '← Teraz v appke' }}
+                                </span>
+                                <div class="flex min-w-0 flex-1 flex-col justify-center gap-2 px-6 pb-[26px] pt-[22px]">
+                                    <span class="text-sm font-extrabold text-cb-red">{{ s.n }}</span>
+                                    <span class="text-2xl font-black leading-[1.1] tracking-[-.02em]">{{ s.title }}</span>
+                                    <span class="text-base leading-normal text-cb-brown [text-wrap:pretty]">{{ s.text }}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex flex-col gap-2 px-6 pb-[26px] pt-[22px]">
-                            <span class="text-sm font-extrabold text-cb-red">{{ s.n }}</span>
-                            <span class="text-2xl font-black leading-[1.1] tracking-[-.02em]">{{ s.title }}</span>
-                            <span class="text-base leading-normal text-cb-brown [text-wrap:pretty]">{{ s.text }}</span>
+                        <div class="lp-stk lp-stk-a" aria-hidden="true" data-reveal="1">
+                            <span class="block rotate-[4deg]"
+                                ><span
+                                    class="lp-float flex items-center gap-2 rounded-[22px] bg-cb-red px-[17px] py-[11px] text-[15px] font-extrabold leading-[1.2] text-white shadow-[0_16px_30px_-14px_rgba(168,42,21,.6)] [animation-duration:3.8s]"
+                                    ><span class="lp-dot bg-[#FFD9C7]" />Overenie raz za rok</span
+                                ></span
+                            >
+                            <span class="mr-7 block -rotate-[3deg]"
+                                ><span class="lp-pill lp-float [animation-delay:.5s] [animation-duration:4.4s]"
+                                    ><span class="lp-dot bg-cb-green" />ISIC alebo školský e‑mail</span
+                                ></span
+                            >
+                        </div>
+                        <div class="lp-stk lp-stk-b" aria-hidden="true" data-reveal="1">
+                            <span class="block -rotate-[3deg]"
+                                ><span
+                                    class="lp-float flex items-center gap-2 rounded-[20px] bg-cb-ink px-4 py-2.5 text-sm font-extrabold leading-[1.2] text-cb-cream shadow-[0_16px_30px_-14px_rgba(42,29,22,.6)] [animation-delay:.3s] [animation-duration:4s]"
+                                    ><span class="lp-dot bg-[#4ADE80]" />Apple Pay · Google Pay · karta</span
+                                ></span
+                            >
+                            <span class="ml-6 block rotate-[2deg]"
+                                ><span class="lp-pill lp-float [animation-delay:.9s] [animation-duration:4.6s]"
+                                    ><span class="lp-dot bg-cb-red" />Zrušíš zadarmo do potvrdenia</span
+                                ></span
+                            >
+                        </div>
+                        <div class="lp-stk lp-stk-c" aria-hidden="true" data-reveal="1">
+                            <span class="block rotate-[3deg]"
+                                ><span
+                                    class="lp-float flex items-center gap-2 rounded-[22px] bg-cb-green px-[17px] py-[11px] text-[15px] font-extrabold leading-[1.2] text-white shadow-[0_16px_30px_-14px_rgba(21,128,61,.6)] [animation-delay:.4s] [animation-duration:3.9s]"
+                                    ><span class="lp-dot bg-cb-mint" />Doručenie, ak ho podnik ponúka</span
+                                ></span
+                            >
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Video -->
-        <section id="video" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)]">
-            <div
-                class="cb-container cb-section-pad grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-center gap-[clamp(32px,5vw,72px)]"
-            >
-                <div data-reveal="1" class="flex max-w-[480px] flex-col gap-4">
-                    <span class="cb-eyebrow">Video</span>
-                    <h2 class="m-0 text-[clamp(34px,4.6vw,60px)] font-black leading-[.98] tracking-[-.04em] [text-wrap:balance]">
-                        CampusBox za 30 sekúnd
-                    </h2>
-                    <p class="m-0 text-lg leading-[1.55] text-cb-brown [text-wrap:pretty]">
-                        Koniec mesiaca, prázdny účet a plné vitríny v bistrách. Pozri si, ako si cez appku rezervuješ zachránené jedlo a vyzdvihneš ho
-                        cestou z prednášky.
-                    </p>
-                    <div class="mt-2 flex flex-wrap gap-3">
-                        <a
-                            :href="appUrl"
-                            class="flex h-[52px] items-center rounded-[26px] bg-cb-red px-6 text-base font-extrabold text-white no-underline hover:text-white"
-                        >
-                            Stiahnuť appku
-                        </a>
-                        <button
-                            type="button"
-                            class="flex h-[52px] items-center rounded-[26px] border-2 border-[rgba(42,29,22,.18)] px-[22px] text-base font-bold text-cb-ink transition-colors hover:border-cb-ink"
-                            @click="videoPhone?.fullscreen()"
-                        >
-                            Pozrieť na celú obrazovku
-                        </button>
+            <!-- Video -->
+            <section id="video" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)]">
+                <div class="lp-wrap lp-vid-grid cb-section-pad items-center">
+                    <div data-reveal="1" class="flex max-w-[480px] flex-col gap-4">
+                        <span class="cb-eyebrow">Video</span>
+                        <h2 class="m-0 text-[clamp(34px,4.6vw,60px)] font-black leading-[.98] tracking-[-.04em] [text-wrap:balance]">
+                            CampusBox za 30 sekúnd
+                        </h2>
+                        <p class="m-0 text-lg leading-[1.55] text-cb-brown [text-wrap:pretty]">
+                            Koniec mesiaca, prázdny účet a plné vitríny v bistrách. Pozri si, ako si cez appku rezervuješ zachránené jedlo a
+                            vyzdvihneš ho cestou z prednášky.
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-3">
+                            <a
+                                :href="appUrl"
+                                @click="preventPlaceholder"
+                                class="flex h-[52px] items-center rounded-[26px] bg-cb-red px-6 text-base font-extrabold text-white no-underline hover:text-white"
+                            >
+                                Stiahnuť appku
+                            </a>
+                            <button
+                                type="button"
+                                class="flex h-[52px] items-center rounded-[26px] border-2 border-[rgba(42,29,22,.18)] px-[22px] text-base font-bold text-cb-ink transition-colors hover:border-cb-ink"
+                                @click="openFullscreen"
+                            >
+                                Pozrieť na celú obrazovku
+                            </button>
+                        </div>
+                    </div>
+                    <div data-reveal="1" class="flex justify-center">
+                        <!-- Desktop: zástupné miesto, kam dosadne putujúci mobil -->
+                        <div v-if="desk" data-step="video" data-x="1" data-r="0" class="w-[300px] flex-none" :style="{ height: metrics.ph + 'px' }" />
+                        <VideoPhone v-else ref="videoPhone" src="/video/campusbox-promo.mp4" poster="/video/campusbox-promo-poster.jpg" />
                     </div>
                 </div>
-                <div data-reveal="1" class="flex justify-center">
-                    <VideoPhone ref="videoPhone" src="/video/campusbox-promo.mp4" poster="/video/campusbox-promo-poster.jpg" />
+            </section>
+
+            <!-- Overlay s putujúcim mobilom (desktop) -->
+            <div v-if="desk" class="pointer-events-none absolute inset-0 z-[5]" :aria-hidden="screen !== 'video'">
+                <div class="lp-wrap h-full pb-[clamp(56px,8vw,104px)]">
+                    <div class="sticky w-[300px]" :style="{ top: metrics.top + 'px', height: metrics.ph + 'px' }">
+                        <div class="lp-phone-in">
+                            <div
+                                ref="mover"
+                                data-lp-mover
+                                class="relative h-[612px] w-[300px] origin-center will-change-transform [transition:transform_.45s_cubic-bezier(.22,.8,.3,1)]"
+                            >
+                                <LandingPhone :screen="phoneScreen" mode="live" />
+                                <div
+                                    v-if="screen === 'video'"
+                                    class="lp-video-in pointer-events-auto absolute left-[9px] top-[9px] box-border flex h-[594px] w-[282px] flex-col gap-2.5 overflow-hidden rounded-[40px] bg-[#FFF2E4] pt-[14px] text-cb-ink"
+                                >
+                                    <div class="relative flex h-[26px] flex-none items-center justify-between px-[26px] text-xs font-bold">
+                                        <span>{{ clock }}</span>
+                                        <span class="absolute left-1/2 top-[2px] h-[26px] w-[92px] -translate-x-1/2 rounded-[14px] bg-black" />
+                                        <span class="text-[10px]">5G</span>
+                                    </div>
+                                    <div class="relative h-[502px] w-[282px] flex-none">
+                                        <video
+                                            ref="overlayVideo"
+                                            class="block h-full w-full object-cover"
+                                            src="/video/campusbox-promo.mp4"
+                                            poster="/video/campusbox-promo-poster.jpg"
+                                            muted
+                                            playsinline
+                                            autoplay
+                                            loop
+                                            preload="metadata"
+                                            aria-label="Promo video CampusBox"
+                                        />
+                                        <button
+                                            v-if="overlayMuted"
+                                            type="button"
+                                            class="absolute right-2.5 top-2.5 flex h-8 items-center gap-1.5 whitespace-nowrap rounded-2xl bg-cb-red pl-2.5 pr-3 text-xs font-bold text-white shadow-[0_10px_22px_-10px_rgba(120,30,10,.6)] transition-transform hover:-translate-y-px"
+                                            @click="playWithSound"
+                                        >
+                                            <svg
+                                                aria-hidden="true"
+                                                width="15"
+                                                height="15"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2.2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <path d="M11 5 6 9H3v6h3l5 4z" />
+                                                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                                                <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+                                            </svg>
+                                            Pustiť so zvukom
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-1 items-center justify-center">
+                                        <span class="h-[5px] w-[110px] rounded-[3px] bg-cb-ink" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </section>
+        </div>
 
         <!-- Manifest -->
         <section class="bg-cb-red text-white">
@@ -432,6 +695,241 @@ useLandingMotion(root);
 </template>
 
 <style scoped>
+/* ---- Putujúci mobil: rozloženie (desktop ≥ 980 px, rovnaký breakpoint ako STORY_BREAKPOINT) ---- */
+.lp-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding-left: clamp(20px, 4vw, 48px);
+    padding-right: clamp(20px, 4vw, 48px);
+}
+.lp-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+    gap: 48px;
+    align-items: center;
+    padding-top: clamp(40px, 7vw, 88px);
+    padding-bottom: clamp(48px, 7vw, 96px);
+}
+.lp-kat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: 16px;
+}
+.lp-ako-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 16px;
+}
+.lp-step {
+    display: flex;
+    flex-direction: column;
+}
+.lp-step > .lp-card {
+    flex: 1;
+}
+.lp-ako-vis {
+    height: 280px;
+    flex: none;
+}
+.lp-vid-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: clamp(32px, 5vw, 72px);
+}
+.lp-chip,
+.lp-stk {
+    display: none;
+}
+.lp-chip {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 14px;
+    background: #2a1d16;
+    color: #fff6ea;
+    font-size: 12.5px;
+    font-weight: 700;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 3;
+}
+.lp-chip-pos {
+    position: absolute;
+    top: clamp(18px, 2.4vw, 28px);
+    right: clamp(18px, 2.4vw, 28px);
+}
+.lp-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 20px;
+    background: #fffdf8;
+    border: 2px solid rgba(120, 80, 50, 0.16);
+    color: #2a1d16;
+    font-weight: 800;
+    font-size: 14px;
+    line-height: 1.2;
+    box-shadow: 0 14px 28px -16px rgba(60, 25, 5, 0.45);
+}
+.lp-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    flex: none;
+}
+.lp-float {
+    animation-name: cbFloat2;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+.lp-lift {
+    transition:
+        box-shadow 0.35s ease,
+        transform 0.2s ease;
+}
+.lp-lift:hover {
+    transform: translateY(-6px);
+}
+.lp-march {
+    animation: lpMarch 1.1s linear infinite;
+}
+.lp-phone-in {
+    animation: lpPhoneIn 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both;
+}
+.lp-video-in {
+    animation: lpVideoIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes lpMarch {
+    to {
+        stroke-dashoffset: -26;
+    }
+}
+@keyframes lpPhoneIn {
+    from {
+        opacity: 0;
+        transform: translateY(28px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@keyframes lpVideoIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (min-width: 980px) {
+    .lp-hero-grid {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        column-gap: clamp(48px, 6vw, 96px);
+        padding-top: 40px;
+        padding-bottom: 40px;
+    }
+    .lp-hero-box {
+        left: calc(clamp(150px, 22vw - 60px, 224px) * -1);
+    }
+    .lp-head {
+        max-width: calc((100% - 370px) / 2 - clamp(20px, 2.5vw, 40px)) !important;
+    }
+    .lp-step {
+        position: relative;
+        z-index: 2;
+    }
+    .lp-step > .lp-card {
+        flex: none;
+    }
+    .lp-kat-grid,
+    .lp-ako-grid {
+        grid-template-columns: minmax(0, 1fr) 370px minmax(0, 1fr);
+        column-gap: clamp(20px, 2.5vw, 40px);
+        row-gap: 0;
+        align-items: start;
+    }
+    .lp-kat-grid > [data-step='zachrana'] {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    .lp-kat-grid > [data-step='menu'] {
+        grid-column: 3;
+        grid-row: 1;
+        margin-top: 240px;
+    }
+    .lp-kat-grid > .lp-stk {
+        grid-column: 3;
+        grid-row: 1;
+        margin-top: 20px;
+    }
+    .lp-ako-grid {
+        grid-auto-rows: 150px;
+    }
+    .lp-ako-grid > [data-step='overenie'] {
+        grid-column: 1;
+        grid-row: 1 / span 3;
+    }
+    .lp-ako-grid > [data-step='platba'] {
+        grid-column: 3;
+        grid-row: 3 / span 3;
+    }
+    .lp-ako-grid > [data-step='qr'] {
+        grid-column: 1;
+        grid-row: 5 / span 3;
+    }
+    .lp-ako-grid > .lp-stk-a {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+        margin-top: 28px;
+    }
+    .lp-ako-grid > .lp-stk-b {
+        grid-column: 1;
+        grid-row: 4;
+        align-self: end;
+        align-items: flex-start;
+        margin-bottom: 22px;
+    }
+    .lp-ako-grid > .lp-stk-c {
+        grid-column: 3;
+        grid-row: 6 / span 2;
+        margin-top: 56px;
+    }
+    .lp-vid-grid {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        column-gap: clamp(48px, 6vw, 96px);
+    }
+    .lp-ako-vis {
+        height: 190px;
+    }
+    .lp-chip {
+        display: flex;
+    }
+    .lp-stk {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 14px;
+        position: relative;
+        z-index: 2;
+        pointer-events: none;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lp-float,
+    .lp-march,
+    .lp-phone-in,
+    .lp-video-in {
+        animation: none !important;
+    }
+}
+
 .hero-bg {
     background-color: #fff6ea;
     background-image:
@@ -439,10 +937,5 @@ useLandingMotion(root);
         radial-gradient(60% 70% at 85% 15%, rgba(255, 197, 154, 0.85) 0%, rgba(255, 197, 154, 0) 70%),
         radial-gradient(55% 60% at 8% 55%, rgba(255, 214, 170, 0.7) 0%, rgba(255, 214, 170, 0) 70%),
         radial-gradient(45% 55% at 100% 70%, rgba(207, 239, 217, 0.8) 0%, rgba(207, 239, 217, 0) 70%);
-}
-.step-card:hover {
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 30px 50px -24px rgba(60, 25, 5, 0.45);
 }
 </style>

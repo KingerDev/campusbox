@@ -48,7 +48,13 @@ class OfferController extends Controller
 
         $data = $request->validate([
             'type' => ['required', Rule::enum(OfferType::class)],
-            'slot' => ['required', Rule::in($type->slots())],
+            // Okno výdaja „HH:MM–HH:MM“, koniec musí byť po začiatku.
+            'slot' => ['bail', 'required', 'regex:/^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$/', function ($attr, $value, $fail) {
+                [$from, $to] = explode('–', $value);
+                if ($to <= $from) {
+                    $fail('Koniec výdaja musí byť neskôr ako začiatok.');
+                }
+            }],
             'rows' => ['array'],
             'rows.*.key' => ['required', 'string'],
             'rows.*.on' => ['boolean'],
@@ -58,7 +64,7 @@ class OfferController extends Controller
             'delivery.fee' => ['nullable', 'regex:/^\d{1,2}([.,]\d{1,2})?$/'],
             'delivery.radius' => [Rule::in(['1 km', '2 km', '3 km'])],
             'delivery.by' => [Rule::in(['Kuriér CampusBox', 'Vlastný kuriér'])],
-        ], ['delivery.fee.regex' => 'Cenu doručenia zadajte ako číslo, napr. 1,49.']);
+        ], ['delivery.fee.regex' => 'Cenu doručenia zadajte ako číslo, napr. 1,49.', 'slot.regex' => 'Zadajte čas výdaja od – do, napr. 19:30 – 20:00.']);
 
         $known = collect($board->rows($business, $type))->keyBy('key');
         $rows = collect($data['rows'] ?? [])->filter(fn ($r) => $known->has($r['key']));

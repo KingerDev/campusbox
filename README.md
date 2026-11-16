@@ -41,7 +41,8 @@ Aplikácia beží na http://127.0.0.1:8000.
 Súbory:
 
 - `resources/js/pages/Landing.vue` – stránka
-- `resources/js/components/landing/` – logo, mockup telefónu a SVG ilustrácie
+- `resources/js/components/landing/` – logo, `LandingPhone.vue` (mobil so 6 obrazovkami appky), SVG ilustrácie
+- `resources/js/composables/useScrollStory.ts` – „putujúci mobil“ na desktope (≥ 980 px): zastávky `[data-step]`, trasa, obrazovky
 - `resources/js/composables/useLandingMotion.ts` – zobrazovanie pri scrolle a animované čísla
 - `resources/css/app.css` – spoločné triedy `cb-*` a animácie
 - `tailwind.config.js` – farby značky (`cb-red`, `cb-ink`, `cb-cream`…) a font Archivo

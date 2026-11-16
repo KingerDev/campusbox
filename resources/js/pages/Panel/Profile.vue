@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PChip from '@/components/panel/PChip.vue';
-import PToggle from '@/components/panel/PToggle.vue';
+import MapPicker from '@/components/panel/MapPicker.vue';
+import OpeningHoursEditor from '@/components/panel/OpeningHoursEditor.vue';
 import { eur } from '@/composables/usePanel';
 import PanelLayout from '@/layouts/PanelLayout.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
@@ -19,6 +20,8 @@ interface ProfileData {
     facebook: string;
     linkedin: string;
     address: string;
+    latitude: number | null;
+    longitude: number | null;
     pickup_instructions: string;
     opening_hours: Hours;
     ico?: string;
@@ -42,10 +45,6 @@ const form = useForm<ProfileData>(JSON.parse(JSON.stringify(props.profile)));
 const toggle = (key: 'types' | 'categories', v: string) => {
     const list = form[key];
     form[key] = list.includes(v) ? (list.length > 1 ? list.filter((x) => x !== v) : list) : [...list, v];
-};
-const copyMonday = () => {
-    const [, o, c, closed] = form.opening_hours[0];
-    for (let i = 1; i <= 4; i++) form.opening_hours[i] = [form.opening_hours[i][0], o, c, closed];
 };
 const save = () => form.put(route('panel.profile.update'), { preserveScroll: true, onSuccess: () => form.defaults() });
 const discard = () => form.reset();
@@ -160,6 +159,13 @@ const errorList = computed(() => Object.values(form.errors));
                 <div class="pcard flex flex-col gap-3.5 p-[18px]">
                     <span class="text-[17px] font-extrabold">Adresa a výdaj</span>
                     <label class="flex flex-col gap-[7px]"><span class="plabel">Adresa</span><input v-model="form.address" class="pinput" /></label>
+                    <MapPicker
+                        :model-value="{ lat: form.latitude, lng: form.longitude }"
+                        :address="form.address"
+                        :label="form.name"
+                        :error="form.errors.latitude || form.errors.longitude"
+                        @update:model-value="(p) => ((form.latitude = p.lat), (form.longitude = p.lng), form.clearErrors('latitude', 'longitude'))"
+                    />
                     <label class="flex flex-col gap-[7px]"
                         ><span class="plabel">Pokyny k výdaju</span><textarea v-model="form.pickup_instructions" rows="2" class="ptextarea" />
                     </label>
@@ -169,28 +175,9 @@ const errorList = computed(() => Object.values(form.errors));
                     >
                 </div>
 
-                <div class="pcard flex flex-col gap-2.5 p-[18px]">
-                    <div class="flex flex-wrap items-center justify-between gap-2.5">
-                        <span class="text-[17px] font-extrabold">Otváracie hodiny</span>
-                        <button type="button" class="text-[13px] font-bold text-cb-red" @click="copyMonday">Skopírovať pondelok na Ut–Pi</button>
-                    </div>
-                    <div class="flex flex-col">
-                        <div
-                            v-for="(h, i) in form.opening_hours"
-                            :key="h[0]"
-                            class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5"
-                            :class="i < 6 && 'border-b-[1.5px] border-cb-line'"
-                        >
-                            <span class="flex-[0_0_92px] text-[14.5px] font-bold">{{ h[0] }}</span>
-                            <PToggle :model-value="!h[3]" small :label="h[0] + ' otvorené'" @update:model-value="h[3] = !$event" />
-                            <span v-if="!h[3]" class="flex items-center gap-1.5">
-                                <input v-model="h[1]" placeholder="10:00" class="pinput h-[38px] w-[70px] rounded-xl px-2.5 text-sm font-bold" />
-                                <span class="text-cb-taupe">–</span>
-                                <input v-model="h[2]" placeholder="21:00" class="pinput h-[38px] w-[70px] rounded-xl px-2.5 text-sm font-bold" />
-                            </span>
-                            <span v-else class="text-sm font-semibold text-cb-taupe">Zatvorené</span>
-                        </div>
-                    </div>
+                <div class="pcard flex flex-col gap-1 p-[18px]">
+                    <span class="text-[17px] font-extrabold">Otváracie hodiny</span>
+                    <OpeningHoursEditor v-model="form.opening_hours" />
                 </div>
 
                 <div v-if="canBill" class="pcard flex flex-col gap-3.5 p-[18px]">

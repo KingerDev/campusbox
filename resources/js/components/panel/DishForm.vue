@@ -147,7 +147,7 @@ const destroy = () => {
                     <input type="file" accept="image/*" class="sr-only" @change="onPhoto" />
                 </label>
                 <label class="flex flex-col gap-[7px]"
-                    ><span class="plabel">Názov jedla</span><input v-model="form.name" class="pinput bg-white" placeholder="napr. Kurací rizoto"
+                    ><span class="plabel">Názov jedla</span><input v-model="form.name" class="pinput bg-white"
                 /></label>
                 <div class="flex flex-col gap-2">
                     <span class="plabel">Sekcia v menu</span>

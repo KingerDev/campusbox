@@ -31,6 +31,8 @@ class DemoSeeder extends Seeder
             'types' => ['Bistro', 'Pizzeria'],
             'categories' => ['Teplé jedlá', 'Polievky'],
             'address' => 'Tajovského 40, 974 01 Banská Bystrica',
+            'latitude' => 48.7392,
+            'longitude' => 19.1196,
             'pickup_instructions' => 'Pri pulte povedzte, že idete po balíček z CampusBox.',
             'description' => 'Domáce denné menu pár krokov od Ekonomickej fakulty. Varíme z lokálnych surovín a nechceme nič vyhadzovať.',
             'phone' => '+421 48 123 45 67',

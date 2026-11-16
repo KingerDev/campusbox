@@ -32,6 +32,8 @@ class ProfileController extends Controller
                 'facebook' => $b->facebook ?? '',
                 'linkedin' => $b->linkedin ?? '',
                 'address' => $b->address,
+                'latitude' => $b->latitude,
+                'longitude' => $b->longitude,
                 'pickup_instructions' => $b->pickup_instructions ?? '',
                 'opening_hours' => $b->opening_hours ?: Business::defaultHours(),
             ] + ($billing ? [
@@ -52,7 +54,6 @@ class ProfileController extends Controller
     public function update(Request $request, CurrentBusiness $current): RedirectResponse
     {
         $billing = $current->can('billing');
-        $time = ['nullable', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'];
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -69,27 +70,21 @@ class ProfileController extends Controller
             'linkedin' => ['nullable', 'string', 'max:160'],
             'address' => ['required', 'string', 'max:200'],
             'pickup_instructions' => ['nullable', 'string', 'max:300'],
-            'opening_hours' => ['required', 'array', 'size:7'],
-            'opening_hours.*.1' => $time,
-            'opening_hours.*.2' => $time,
-            'opening_hours.*.3' => ['boolean'],
-        ] + ($billing ? [
+        ] + Business::hoursRules() + Business::locationRules() + ($billing ? [
             'ico' => ['required', 'string', 'regex:/^[0-9 ]{6,12}$/'],
             'dic' => ['nullable', 'string', 'max:20'],
             'iban' => ['required', 'string', 'regex:/^[A-Z]{2}\d{2}[A-Z0-9 ]{10,30}$/i'],
             'billing_email' => ['required', 'email', 'max:120'],
-        ] : []), [
+        ] : []), Business::locationMessages() + [
             'name.required' => 'Vyplňte názov podniku.',
             'address.required' => 'Vyplňte adresu.',
             'types.required' => 'Vyberte aspoň jeden typ podniku.',
             'categories.required' => 'Vyberte aspoň jednu kategóriu.',
-            'opening_hours.*.1.regex' => 'Čas zadajte vo formáte 10:00.',
-            'opening_hours.*.2.regex' => 'Čas zadajte vo formáte 21:00.',
             'iban.regex' => 'Skontrolujte IBAN.',
             'ico.regex' => 'IČO má 6 až 8 číslic.',
         ]);
 
-        $data['opening_hours'] = array_map(fn ($h, $i) => [Business::DAYS[$i], $h[1] ?? '', $h[2] ?? '', (bool) ($h[3] ?? false)], $data['opening_hours'], array_keys($data['opening_hours']));
+        $data['opening_hours'] = Business::normalizeHours($data['opening_hours']);
         $current->business()->update($data);
 
         return back()->with('toast', 'Profil uložený');

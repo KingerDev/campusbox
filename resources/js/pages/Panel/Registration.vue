@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import CampusLogo from '@/components/landing/CampusLogo.vue';
 import PChip from '@/components/panel/PChip.vue';
+import MapPicker from '@/components/panel/MapPicker.vue';
+import OpeningHoursEditor, { type Hours } from '@/components/panel/OpeningHoursEditor.vue';
 import PToggle from '@/components/panel/PToggle.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -17,6 +19,17 @@ const form = useForm({
     typ: [] as string[],
     zost: [] as string[],
     adresa: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    opening_hours: [
+        ['Pondelok', '10:00', '21:00', false],
+        ['Utorok', '10:00', '21:00', false],
+        ['Streda', '10:00', '21:00', false],
+        ['Štvrtok', '10:00', '21:00', false],
+        ['Piatok', '10:00', '22:00', false],
+        ['Sobota', '11:00', '20:00', false],
+        ['Nedeľa', '', '', true],
+    ] as Hours,
     pokyny: 'Pri pulte povedzte, že idete po balíček z CampusBox.',
     donaska: false,
     poplatok: '1,49',
@@ -175,19 +188,20 @@ const nextLabel = computed(() => (step.value === 4 ? 'Prejsť do panela' : step.
                         ><span class="plabel">Typ podniku</span
                         ><span class="text-[12.5px] text-cb-taupe">Môžete vybrať viac, napr. bistro aj pizzeria.</span></span
                     >
-                    <div class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2">
                         <button
                             v-for="(t, i) in types"
                             :key="t"
                             type="button"
-                            class="box-border flex h-16 items-center gap-2.5 rounded-[20px] border-[1.5px] px-3.5 text-left text-sm font-bold"
+                            class="box-border flex min-h-16 items-center gap-2.5 rounded-[20px] border-[1.5px] px-3.5 py-2 text-left text-sm font-bold"
                             :class="form.typ.includes(t) ? 'border-cb-ink bg-cb-ink text-cb-cream' : 'border-cb-line bg-white'"
                             :aria-pressed="form.typ.includes(t)"
                             @click="toggle('typ', t)"
                         >
-                            <span class="h-7 w-7 flex-none rounded-full" :style="{ background: TYPE_COLORS[i] }" />{{
-                                form.typ.includes(t) ? '✓ ' : ''
-                            }}{{ t }}
+                            <span class="flex h-7 w-7 flex-none items-center justify-center rounded-full text-sm font-black text-white" :style="{ background: TYPE_COLORS[i] }" aria-hidden="true">
+                                {{ form.typ.includes(t) ? '✓' : '' }}
+                            </span>
+                            <span class="min-w-0 leading-tight [overflow-wrap:anywhere]">{{ t }}</span>
                         </button>
                     </div>
                 </div>
@@ -205,29 +219,21 @@ const nextLabel = computed(() => (step.value === 4 ? 'Prejsť do panela' : step.
             </template>
 
             <template v-if="step === 2">
-                <div class="relative h-[150px] overflow-hidden rounded-3xl bg-[#F6E3CF]" aria-hidden="true">
-                    <div class="absolute -left-5 -right-5 top-[46%] h-4 -rotate-[5deg] bg-white/80" />
-                    <div class="absolute -bottom-5 -top-5 left-[38%] w-3.5 -rotate-[8deg] bg-white/80" />
-                    <div
-                        class="absolute left-[40%] top-[40%] flex h-8 -translate-x-1/2 -translate-y-full items-center rounded-full bg-cb-red px-3 text-[13px] font-extrabold text-white"
-                    >
-                        {{ form.nazov || 'Váš podnik' }}
-                    </div>
-                </div>
+                <MapPicker
+                    :model-value="{ lat: form.latitude, lng: form.longitude }"
+                    :address="form.adresa"
+                    :label="form.nazov || 'Váš podnik'"
+                    :error="form.errors.latitude || form.errors.longitude"
+                    @update:model-value="(p) => ((form.latitude = p.lat), (form.longitude = p.lng), form.clearErrors('latitude', 'longitude'))"
+                />
                 <div class="flex flex-col gap-2">
-                    <span class="plabel">Otváracie hodiny</span>
-                    <div class="pcard rounded-[20px] px-4 py-1">
-                        <div class="flex justify-between border-b-[1.5px] border-cb-line py-3 text-[15px]">
-                            <span class="font-semibold">Po – Pi</span><span class="font-bold">10:00 – 21:00</span>
-                        </div>
-                        <div class="flex justify-between border-b-[1.5px] border-cb-line py-3 text-[15px]">
-                            <span class="font-semibold">Sobota</span><span class="font-bold">11:00 – 20:00</span>
-                        </div>
-                        <div class="flex justify-between py-3 text-[15px]">
-                            <span class="font-semibold">Nedeľa</span><span class="font-bold text-cb-taupe">Zatvorené</span>
-                        </div>
+                    <span class="flex flex-col gap-0.5">
+                        <span class="plabel">Otváracie hodiny</span>
+                        <span class="text-[12.5px] text-cb-taupe">Študenti ich uvidia v detaile podniku. Neskôr ich zmeníte v profile.</span>
+                    </span>
+                    <div class="pcard rounded-[20px] px-4 py-2">
+                        <OpeningHoursEditor v-model="form.opening_hours" />
                     </div>
-                    <span class="text-[12.5px] text-cb-taupe">Hodiny upravíte po registrácii v profile podniku.</span>
                 </div>
                 <label class="flex cursor-pointer items-center gap-3 rounded-[20px] bg-white px-4 py-3.5">
                     <PToggle v-model="form.donaska" label="Ponúkať aj doručenie" />

@@ -63,8 +63,10 @@ class RegistrationController extends Controller
                 'types' => $data['typ'],
                 'categories' => $data['zost'],
                 'address' => $data['adresa'],
+                'latitude' => $data['latitude'],
+                'longitude' => $data['longitude'],
                 'pickup_instructions' => $data['pokyny'] ?? null,
-                'opening_hours' => Business::defaultHours(),
+                'opening_hours' => Business::normalizeHours($data['opening_hours']),
                 'delivery_enabled' => (bool) ($data['donaska'] ?? false),
                 'delivery_fee' => $this->money($data['poplatok'] ?? '0'),
                 'iban' => strtoupper(preg_replace('/\s+/', ' ', trim($data['iban']))),
@@ -115,7 +117,7 @@ class RegistrationController extends Controller
                 'zost' => ['required', 'array', 'min:1'],
                 'zost.*' => [Rule::in(Business::CATEGORIES)],
             ],
-            2 => [
+            2 => Business::locationRules() + Business::hoursRules() + [
                 'adresa' => ['required', 'string', 'max:200'],
                 'pokyny' => ['nullable', 'string', 'max:300'],
                 'donaska' => ['boolean'],
@@ -131,7 +133,7 @@ class RegistrationController extends Controller
 
     private function messages(): array
     {
-        return [
+        return Business::locationMessages() + [
             'meno.required' => 'Vyplňte pole „Meno a priezvisko“.',
             'email.required' => 'Vyplňte pole „Pracovný e‑mail“.',
             'email.email' => 'Skontrolujte e‑mail, napr. meno@podnik.sk.',

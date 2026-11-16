@@ -30,6 +30,16 @@ class ManageTest extends PanelTestCase
         $this->assertSame('3 km', $this->business->fresh()->delivery_radius);
     }
 
+    public function test_pickup_window_is_free_but_must_be_valid()
+    {
+        $base = ['type' => 'zachrana', 'rows' => [], 'delivery' => ['on' => false]];
+        $this->as('jana')->put('/panel/ponuka', $base + ['slot' => '17:45–18:15'])->assertSessionHasNoErrors();
+        $this->assertSame('17:45–18:15', $this->business->fresh()->rescue_slot);
+
+        $this->as('jana')->put('/panel/ponuka', $base + ['slot' => '20:00–19:00'])->assertSessionHasErrors(['slot' => 'Koniec výdaja musí byť neskôr ako začiatok.']);
+        $this->as('jana')->put('/panel/ponuka', $base + ['slot' => 'večer'])->assertSessionHasErrors('slot');
+    }
+
     public function test_dish_crud_with_options_and_photo()
     {
         Storage::fake('public');
@@ -107,7 +117,7 @@ class ManageTest extends PanelTestCase
 
     public function test_profile_update_and_billing_only_for_owner()
     {
-        $base = ['name' => 'Bistro Nové', 'types' => ['Bistro'], 'categories' => ['Pečivo'], 'address' => 'Nová 1', 'opening_hours' => array_fill(0, 7, ['X', '09:00', '17:00', false])];
+        $base = ['name' => 'Bistro Nové', 'types' => ['Bistro'], 'categories' => ['Pečivo'], 'address' => 'Nová 1', 'latitude' => 48.73, 'longitude' => 19.15, 'opening_hours' => array_fill(0, 7, ['X', '09:00', '17:00', false])];
 
         $this->as('jana')->put('/panel/profil', $base + ['iban' => 'SK00 0000 0000 0000 0000 0000'])->assertSessionHasNoErrors();
         $this->assertSame('Bistro Nové', $this->business->fresh()->name);
