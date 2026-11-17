@@ -37,8 +37,8 @@ const hero = computed(() =>
           }
         : {
               kicker: 'Pilot v Banskej Bystrici',
-              title: 'Zachráň dobré jedlo. Za študentské ceny.',
-              accent: '',
+              title: 'Zachráň dobré jedlo.',
+              accent: 'Za študentské ceny.',
               sub: 'CampusBox spája študentov s bistrami, pekárňami a kaviarňami v celom meste. Zachráň nepredané jedlo až o 70 % lacnejšie alebo si daj zvýhodnené obedové menu.',
               cta1: { label: 'Stiahnuť appku', href: props.appUrl },
               cta2: { label: 'Ako to funguje', href: '#ako' },
@@ -246,7 +246,7 @@ const glass = (k: string) =>
                         </span>
                         <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:pretty]">
                             <span class="block [text-wrap:pretty]">{{ hero.title }}</span>
-                            <span v-if="hero.accent" class="block text-cb-red [text-wrap:balance]">{{ hero.accent }}</span>
+                            <span v-if="hero.accent" class="block text-cb-or [text-wrap:balance]">{{ hero.accent }}</span>
                         </h1>
                         <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
                         <div class="mt-1.5 flex flex-wrap gap-2.5">
@@ -487,7 +487,7 @@ const glass = (k: string) =>
                             <div
                                 ref="mover"
                                 data-lp-mover
-                                class="relative h-[612px] w-[300px] origin-center will-change-transform [transition:transform_.45s_cubic-bezier(.22,.8,.3,1)]"
+                                class="relative h-[612px] w-[300px] origin-center [transition:transform_.45s_cubic-bezier(.22,.8,.3,1)]"
                             >
                                 <LandingPhone :screen="phoneScreen" mode="live" />
                                 <div
