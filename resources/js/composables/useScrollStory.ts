@@ -53,6 +53,7 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
     let raf = 0;
     let routeSig = '';
     let reduce = false;
+    let zoom = 0;
     const late: ReturnType<typeof setTimeout>[] = [];
 
     const move = () => {
@@ -109,7 +110,20 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         const rot = reduce ? 0 : a.r + (b.r - a.r) * e + Math.sign(xb - xa) * arc * Math.min(10, dist / 30);
         const sc = m.sc * (a.s + (b.s - a.s) * e) * (1 - 0.08 * arc * Math.min(1, dist / 200));
         const y = -(612 - m.ph) / 2 - arc * Math.min(34, dist / 8);
-        mv.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+        // Mierku zastávky nesie `zoom` (ostré vykreslenie), transform len zvyšok počas presunu – v pokoji presne 1.
+        // Zoom sa mení iba keď mobil stojí na zastávke, aby nebolo vidieť skok veľkosti.
+        const zm = mv.querySelector<HTMLElement>('[data-lp-zoom]');
+        if (zm && (arc < 0.02 || !zoom)) {
+            const z = +(m.sc * (e < 0.5 ? a.s : b.s)).toFixed(3);
+            if (z !== zoom) {
+                zoom = z;
+                zm.style.zoom = String(z);
+                mv.style.transition = 'none';
+                setTimeout(() => (mv.style.transition = ''));
+            }
+        }
+        const rel = zoom ? sc / zoom : sc;
+        mv.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg) scale(${rel.toFixed(4)})`;
 
         // Trasa: tie isté body a easing ako mobil, bodky vedú presne pod jeho stredom.
         const P = ks.map((k) => ({ x: Math.round(left0 + X(k) + 150), y: Math.round(k.y) }));

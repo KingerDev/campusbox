@@ -144,10 +144,13 @@ const initialTransform = () => {
     const pad = Math.min(48, Math.max(20, w * 0.04));
     const span0 = Math.max(0, Math.min(w, 1200) - 2 * pad - 300);
     const m = storyMetrics(window.innerHeight);
-    return `translate3d(${Math.round(span0)}px,${-(612 - m.ph) / 2}px,0) rotate(-2deg) scale(${m.sc})`;
+    return `translate3d(${Math.round(span0)}px,${-(612 - m.ph) / 2}px,0) rotate(-2deg)`;
 };
 watch(mover, (el) => {
-    if (el && !el.style.transform) el.style.transform = initialTransform();
+    if (!el || el.style.transform) return;
+    el.style.transform = initialTransform();
+    const zm = el.querySelector<HTMLElement>('[data-lp-zoom]');
+    if (zm) zm.style.zoom = String(storyMetrics(window.innerHeight).sc);
 });
 
 // ---- Video na poslednej zastávke ----
@@ -246,7 +249,7 @@ const glass = (k: string) =>
                         </span>
                         <h1 class="m-0 text-[clamp(44px,6.4vw,84px)] font-black leading-[.95] tracking-[-.045em] [text-wrap:pretty]">
                             <span class="block [text-wrap:pretty]">{{ hero.title }}</span>
-                            <span v-if="hero.accent" class="block text-cb-or [text-wrap:balance]">{{ hero.accent }}</span>
+                            <span v-if="hero.accent" class="block text-cb-red [text-wrap:balance]">{{ hero.accent }}</span>
                         </h1>
                         <p class="m-0 max-w-[520px] text-[clamp(17px,1.6vw,20px)] leading-normal text-cb-brown [text-wrap:pretty]">{{ hero.sub }}</p>
                         <div class="mt-1.5 flex flex-wrap gap-2.5">
@@ -489,55 +492,60 @@ const glass = (k: string) =>
                                 data-lp-mover
                                 class="relative h-[612px] w-[300px] origin-center [transition:transform_.45s_cubic-bezier(.22,.8,.3,1)]"
                             >
-                                <LandingPhone :screen="phoneScreen" mode="live" />
-                                <div
-                                    v-if="screen === 'video'"
-                                    class="lp-video-in pointer-events-auto absolute left-[9px] top-[9px] box-border flex h-[594px] w-[282px] flex-col gap-2.5 overflow-hidden rounded-[40px] bg-[#FFF2E4] pt-[14px] text-cb-ink"
-                                >
-                                    <div class="relative flex h-[26px] flex-none items-center justify-between px-[26px] text-xs font-bold">
-                                        <span>{{ clock }}</span>
-                                        <span class="absolute left-1/2 top-[2px] h-[26px] w-[92px] -translate-x-1/2 rounded-[14px] bg-black" />
-                                        <span class="text-[10px]">5G</span>
-                                    </div>
-                                    <div class="relative h-[502px] w-[282px] flex-none">
-                                        <video
-                                            ref="overlayVideo"
-                                            class="block h-full w-full object-cover"
-                                            src="/video/campusbox-promo.mp4"
-                                            poster="/video/campusbox-promo-poster.jpg"
-                                            muted
-                                            playsinline
-                                            autoplay
-                                            loop
-                                            preload="metadata"
-                                            aria-label="Promo video CampusBox"
-                                        />
-                                        <button
-                                            v-if="overlayMuted"
-                                            type="button"
-                                            class="absolute right-2.5 top-2.5 flex h-8 items-center gap-1.5 whitespace-nowrap rounded-2xl bg-cb-red pl-2.5 pr-3 text-xs font-bold text-white shadow-[0_10px_22px_-10px_rgba(120,30,10,.6)] transition-transform hover:-translate-y-px"
-                                            @click="playWithSound"
+                                <!-- Stála mierka cez zoom: prehliadač telefón vykreslí ostro v cieľovej veľkosti (scale v transforme by ho len roztiahol z bitmapy). -->
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <div data-lp-zoom class="relative h-[612px] w-[300px] flex-none">
+                                        <LandingPhone :screen="phoneScreen" mode="live" />
+                                        <div
+                                            v-if="screen === 'video'"
+                                            class="lp-video-in pointer-events-auto absolute left-[9px] top-[9px] box-border flex h-[594px] w-[282px] flex-col gap-2.5 overflow-hidden rounded-[40px] bg-[#FFF2E4] pt-[14px] text-cb-ink"
                                         >
-                                            <svg
-                                                aria-hidden="true"
-                                                width="15"
-                                                height="15"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2.2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            >
-                                                <path d="M11 5 6 9H3v6h3l5 4z" />
-                                                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-                                                <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-                                            </svg>
-                                            Pustiť so zvukom
-                                        </button>
-                                    </div>
-                                    <div class="flex flex-1 items-center justify-center">
-                                        <span class="h-[5px] w-[110px] rounded-[3px] bg-cb-ink" />
+                                            <div class="relative flex h-[26px] flex-none items-center justify-between px-[26px] text-xs font-bold">
+                                                <span>{{ clock }}</span>
+                                                <span class="absolute left-1/2 top-[2px] h-[26px] w-[92px] -translate-x-1/2 rounded-[14px] bg-black" />
+                                                <span class="text-[10px]">5G</span>
+                                            </div>
+                                            <div class="relative h-[502px] w-[282px] flex-none">
+                                                <video
+                                                    ref="overlayVideo"
+                                                    class="block h-full w-full object-cover"
+                                                    src="/video/campusbox-promo.mp4"
+                                                    poster="/video/campusbox-promo-poster.jpg"
+                                                    muted
+                                                    playsinline
+                                                    autoplay
+                                                    loop
+                                                    preload="metadata"
+                                                    aria-label="Promo video CampusBox"
+                                                />
+                                                <button
+                                                    v-if="overlayMuted"
+                                                    type="button"
+                                                    class="absolute right-2.5 top-2.5 flex h-8 items-center gap-1.5 whitespace-nowrap rounded-2xl bg-cb-red pl-2.5 pr-3 text-xs font-bold text-white shadow-[0_10px_22px_-10px_rgba(120,30,10,.6)] transition-transform hover:-translate-y-px"
+                                                    @click="playWithSound"
+                                                >
+                                                    <svg
+                                                        aria-hidden="true"
+                                                        width="15"
+                                                        height="15"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2.2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                    >
+                                                        <path d="M11 5 6 9H3v6h3l5 4z" />
+                                                        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                                                        <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+                                                    </svg>
+                                                    Pustiť so zvukom
+                                                </button>
+                                            </div>
+                                            <div class="flex flex-1 items-center justify-center">
+                                                <span class="h-[5px] w-[110px] rounded-[3px] bg-cb-ink" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
