@@ -2,7 +2,7 @@ import { onBeforeUnmount, onMounted, type Ref } from 'vue';
 
 /**
  * Scroll-reveal ([data-reveal], [data-stagger] children) and number count-up ([data-count="from|to|decimals|suffix"])
- * scoped to the given root element. Respects prefers-reduced-motion.
+ * scoped to the given root element.
  */
 export function useLandingMotion(root: Ref<HTMLElement | null>) {
     let io: IntersectionObserver | undefined;
@@ -36,7 +36,7 @@ export function useLandingMotion(root: Ref<HTMLElement | null>) {
 
     onMounted(() => {
         const el = root.value;
-        if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (!el) return;
 
         io = new IntersectionObserver(
             (entries) =>

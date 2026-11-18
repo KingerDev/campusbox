@@ -929,14 +929,6 @@ const glass = (k: string) =>
         pointer-events: none;
     }
 }
-@media (prefers-reduced-motion: reduce) {
-    .lp-float,
-    .lp-march,
-    .lp-phone-in,
-    .lp-video-in {
-        animation: none !important;
-    }
-}
 
 .hero-bg {
     background-color: #fff6ea;

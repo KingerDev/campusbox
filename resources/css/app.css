@@ -163,10 +163,6 @@ html {
 @keyframes cbDash2 { to { stroke-dashoffset: -22 } }
 @keyframes cbRide { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-2px) } }
 
-@media (prefers-reduced-motion: reduce) {
-    .cb-landing * { animation: none !important; }
-}
-
 /* ---------- CampusBox panel pre podniky ---------- */
 @layer components {
     .pcard {

@@ -52,7 +52,6 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
 
     let raf = 0;
     let routeSig = '';
-    let reduce = false;
     let zoom = 0;
     const late: ReturnType<typeof setTimeout>[] = [];
 
@@ -105,9 +104,9 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         const xa = X(a);
         const xb = X(b);
         const dist = Math.abs(xb - xa);
-        const arc = reduce ? 0 : Math.sin(e * Math.PI);
+        const arc = Math.sin(e * Math.PI);
         const x = xa + (xb - xa) * e;
-        const rot = reduce ? 0 : a.r + (b.r - a.r) * e + Math.sign(xb - xa) * arc * Math.min(10, dist / 30);
+        const rot = a.r + (b.r - a.r) * e + Math.sign(xb - xa) * arc * Math.min(10, dist / 30);
         const sc = m.sc * (a.s + (b.s - a.s) * e) * (1 - 0.08 * arc * Math.min(1, dist / 200));
         const y = -(612 - m.ph) / 2 - arc * Math.min(34, dist / 8);
         // Mierku zastávky nesie `zoom` (ostré vykreslenie), transform len zvyšok počas presunu – v pokoji presne 1.
@@ -159,11 +158,6 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
     };
 
     onMounted(() => {
-        try {
-            reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        } catch {
-            reduce = false;
-        }
         onResize();
         window.addEventListener('resize', onResize);
         window.addEventListener('scroll', onScroll, { capture: true, passive: true });

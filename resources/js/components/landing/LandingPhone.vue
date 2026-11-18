@@ -16,7 +16,6 @@ const typed = ref(0);
 const ISIC = 'S 421 012 345 678 A';
 const live = computed(() => props.mode === 'live');
 
-let reduce = false;
 let tickTimer: ReturnType<typeof setInterval> | undefined;
 let nowTimer: ReturnType<typeof setInterval> | undefined;
 let typeTimer: ReturnType<typeof setInterval> | undefined;
@@ -31,7 +30,7 @@ const clearStage = () => {
 /** Spustí časované animácie obrazovky odznova (overenie, platba, tlač lístka). */
 const runStage = () => {
     clearStage();
-    if (!live.value || reduce) {
+    if (!live.value) {
         stage.value = 2;
         typed.value = ISIC.length;
         return;
@@ -60,11 +59,6 @@ const runStage = () => {
 };
 
 onMounted(() => {
-    try {
-        reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch {
-        reduce = false;
-    }
     nowTimer = setInterval(() => (now.value = new Date()), 15000);
     if (live.value) tickTimer = setInterval(() => tick.value++, 2400);
     runStage();
@@ -604,11 +598,6 @@ const qr = (() => {
     to {
         opacity: 1;
         transform: none;
-    }
-}
-@media (prefers-reduced-motion: reduce) {
-    .lm * {
-        animation: none !important;
     }
 }
 </style>
