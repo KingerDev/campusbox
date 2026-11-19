@@ -15,7 +15,16 @@ RUN npm run build
 
 # ---- 3. aplikácia ----
 FROM serversideup/php:8.4-fpm-nginx
-ENV AUTORUN_ENABLED=false
+# Pri štarte kontajnera sa spustí `php artisan migrate --force`, aby databáza vždy sedela s nasadeným kódom.
+# Ostatné automatizácie (cache konfigurácie, trás, pohľadov…) ostávajú vypnuté – správanie aplikácie sa nemení.
+ENV AUTORUN_ENABLED=true
+ENV AUTORUN_LARAVEL_MIGRATION=true
+ENV AUTORUN_LARAVEL_STORAGE_LINK=false
+ENV AUTORUN_LARAVEL_OPTIMIZE=false
+ENV AUTORUN_LARAVEL_CONFIG_CACHE=false
+ENV AUTORUN_LARAVEL_ROUTE_CACHE=false
+ENV AUTORUN_LARAVEL_VIEW_CACHE=false
+ENV AUTORUN_LARAVEL_EVENT_CACHE=false
 ENV SSL_MODE=off
 USER root
 RUN install-php-extensions gd exif
