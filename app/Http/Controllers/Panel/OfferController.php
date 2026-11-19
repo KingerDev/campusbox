@@ -26,10 +26,11 @@ class OfferController extends Controller
                 'zachrana' => $board->rows($business, OfferType::Rescue),
                 'menu' => $board->rows($business, OfferType::Menu),
             ],
-            'slots' => [
-                'zachrana' => ['options' => OfferType::Rescue->slots(), 'value' => $business->rescue_slot],
-                'menu' => ['options' => OfferType::Menu->slots(), 'value' => $business->menu_slot],
-            ],
+            // Menu: okno výdaja od–do. Záchrana: len čas „do“, predvolene dnešná záverečná.
+            'menuSlot' => $business->menu_slot,
+            'rescueUntil' => $business->rescueUntil(),
+            // Dnešné otváracie hodiny – karta výdaja podľa nich upozorní na čas mimo otvorenia.
+            'today' => (fn (array $h) => ['open' => $h[1], 'close' => $h[2], 'closed' => (bool) $h[3]])($business->todayHours()),
             'rates' => ['zachrana' => OfferType::Rescue->commissionRate(), 'menu' => OfferType::Menu->commissionRate()],
             'delivery' => [
                 'on' => $business->delivery_enabled,
@@ -48,23 +49,32 @@ class OfferController extends Controller
 
         $data = $request->validate([
             'type' => ['required', Rule::enum(OfferType::class)],
-            // Okno výdaja „HH:MM–HH:MM“, koniec musí byť po začiatku.
-            'slot' => ['bail', 'required', 'regex:/^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$/', function ($attr, $value, $fail) {
+            // Menu: okno výdaja „HH:MM–HH:MM“, koniec musí byť po začiatku.
+            'slot' => [Rule::requiredIf($type === OfferType::Menu), 'bail', 'nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d–([01]\d|2[0-3]):[0-5]\d$/', function ($attr, $value, $fail) {
                 [$from, $to] = explode('–', $value);
                 if ($to <= $from) {
                     $fail('Koniec výdaja musí byť neskôr ako začiatok.');
+                }
+            }],
+            // Záchrana: dokedy si študenti jedlo vyzdvihnú. Zverejniť ponuku s časom, ktorý už prešiel, nemá zmysel.
+            'until' => [Rule::requiredIf($type === OfferType::Rescue), 'bail', 'nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/', function ($attr, $value, $fail) use ($request) {
+                $selling = collect($request->input('rows', []))->contains(fn ($r) => ! empty($r['on']));
+                if ($selling && $value <= now()->format('H:i')) {
+                    $fail('Tento čas už prešiel. Zadajte, dokedy si študenti jedlo dnes ešte vyzdvihnú.');
                 }
             }],
             'rows' => ['array'],
             'rows.*.key' => ['required', 'string'],
             'rows.*.on' => ['boolean'],
             'rows.*.count' => ['required', 'integer', 'min:1', 'max:500'],
+            // Bežnú hodnotu si podnik určuje len pri balíčku prekvapenie; jedlá ju majú z menu.
+            'rows.*.regular' => ['nullable', 'numeric', 'min:1', 'max:999'],
             'rows.*.price' => ['required', 'numeric', 'min:0.5', 'max:999'],
             'delivery.on' => ['boolean'],
             'delivery.fee' => ['nullable', 'regex:/^\d{1,2}([.,]\d{1,2})?$/'],
             'delivery.radius' => [Rule::in(['1 km', '2 km', '3 km'])],
             'delivery.by' => [Rule::in(['Kuriér CampusBox', 'Vlastný kuriér'])],
-        ], ['delivery.fee.regex' => 'Cenu doručenia zadajte ako číslo, napr. 1,49.', 'slot.regex' => 'Zadajte čas výdaja od – do, napr. 19:30 – 20:00.']);
+        ], ['delivery.fee.regex' => 'Cenu doručenia zadajte ako číslo, napr. 1,49.', 'slot.regex' => 'Zadajte čas výdaja od – do, napr. 11:00 – 14:00.', 'slot.required' => 'Zadajte, od kedy do kedy menu vydávate.', 'until.regex' => 'Zadajte čas v tvare 20:00.', 'until.required' => 'Zadajte, dokedy si študenti jedlo vyzdvihnú.']);
 
         $known = collect($board->rows($business, $type))->keyBy('key');
         $rows = collect($data['rows'] ?? [])->filter(fn ($r) => $known->has($r['key']));
@@ -73,6 +83,10 @@ class OfferController extends Controller
         DB::transaction(function () use ($business, $type, $data, $rows, $known, &$published) {
             foreach ($rows as $row) {
                 $base = $known[$row['key']];
+                if ($row['key'] === 'surprise' && isset($row['regular'])) {
+                    $base['regular'] = round((float) $row['regular'], 2);
+                    $business->surprise_value = $base['regular'];
+                }
                 // Cena pre študenta nesmie byť vyššia ako bežná cena.
                 $price = min((float) $row['price'], (float) $base['regular']);
                 $attrs = ['dish_id' => $base['dishId'], 'name' => $base['name'], 'regular_price' => $base['regular'], 'price' => $price, 'quantity' => $row['count'], 'active' => (bool) $row['on']];
@@ -87,7 +101,10 @@ class OfferController extends Controller
             }
 
             $business->update([
-                $type === OfferType::Rescue ? 'rescue_slot' : 'menu_slot' => $data['slot'],
+                // Čas zhodný so záverečnou neukladáme – výdaj sa potom každý deň riadi otváracími hodinami.
+                ...($type === OfferType::Rescue
+                    ? ['rescue_until' => $data['until'] === $business->closingTime() ? null : $data['until']]
+                    : ['menu_slot' => $data['slot']]),
                 'delivery_enabled' => (bool) data_get($data, 'delivery.on', $business->delivery_enabled),
                 'delivery_fee' => round((float) str_replace(',', '.', (string) data_get($data, 'delivery.fee', $business->delivery_fee)), 2),
                 'delivery_radius' => data_get($data, 'delivery.radius', $business->delivery_radius),
@@ -95,6 +112,9 @@ class OfferController extends Controller
             ]);
         });
 
-        return back()->with('toast', 'Ponuka zverejnená · '.$published.' porcií');
+        // Neoverený podnik si ponuku môže pripraviť, ale študenti ju ešte nevidia (Business::visibleToStudents) – nesľubujeme zverejnenie.
+        return back()->with('toast', $business->isApproved()
+            ? 'Ponuka zverejnená · '.$published.' porcií'
+            : 'Ponuka uložená · '.$published.' porcií. Študenti ju uvidia až po overení podniku.');
     }
 }

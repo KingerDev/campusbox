@@ -7,6 +7,7 @@ import IllustrationReserve from '@/components/landing/IllustrationReserve.vue';
 import LandingPhone, { type PhoneScreen } from '@/components/landing/LandingPhone.vue';
 import VideoPhone from '@/components/landing/VideoPhone.vue';
 import { useClock } from '@/composables/useClock';
+import { useDemo } from '@/composables/useDemo';
 import { useLandingMotion } from '@/composables/useLandingMotion';
 import { MOBILE_BREAKPOINT, storyMetrics, useScrollStory } from '@/composables/useScrollStory';
 import { Head } from '@inertiajs/vue3';
@@ -19,6 +20,8 @@ const props = withDefaults(defineProps<{ audience?: 'studenti' | 'podniky'; appU
 
 const biz = computed(() => props.audience === 'podniky');
 const registerUrl = route('panel.registration');
+const loginUrl = route('login');
+const { startDemo, starting: demoStarting, demoError } = useDemo();
 // Odkazy, ktoré zatiaľ nikam nevedú (href „#“, napr. appka), neskáču na začiatok stránky.
 const preventPlaceholder = (e: MouseEvent) => {
     if ((e.currentTarget as HTMLAnchorElement).getAttribute('href') === '#') e.preventDefault();
@@ -203,6 +206,10 @@ const glass = (k: string) =>
                         <a href="#podniky" class="text-[15px] font-semibold text-cb-ink no-underline hover:text-cb-red">Pre podniky</a>
                         <a href="#faq" class="text-[15px] font-semibold text-cb-ink no-underline hover:text-cb-red">Otázky</a>
                     </span>
+                    <!-- Na úzkom mobile sa popri logu a tlačidle nezmestí; odkaz je aj v sekcii Pre podniky a v pätičke. -->
+                    <a :href="loginUrl" class="hidden text-[15px] font-bold text-cb-ink no-underline hover:text-cb-red min-[560px]:block">
+                        Prihlásenie pre podniky
+                    </a>
                     <a
                         :href="appUrl"
                         class="flex h-[42px] items-center rounded-[21px] bg-cb-red px-[18px] text-[14.5px] font-bold text-white no-underline transition duration-200 hover:-translate-y-[3px] hover:text-white hover:shadow-[0_12px_24px_-10px_rgba(219,59,34,.6)]"
@@ -601,7 +608,19 @@ const glass = (k: string) =>
                             <span class="font-black text-cb-green">✓</span><span>{{ b }}</span>
                         </div>
                     </div>
-                    <a :href="registerUrl" class="cb-btn cb-btn-red min-w-[280px] self-start"><span>Zaregistrovať podnik</span><span>→</span></a>
+                    <div class="flex flex-wrap gap-2.5">
+                        <a :href="registerUrl" class="cb-btn cb-btn-red min-w-[250px]"><span>Zaregistrovať podnik</span><span>→</span></a>
+                        <button type="button" class="cb-btn cb-btn-ink min-w-[220px]" :disabled="demoStarting" @click="startDemo">
+                            <span>{{ demoStarting ? 'Pripravujeme…' : 'Vyskúšať demo panel' }}</span
+                            ><span>→</span>
+                        </button>
+                    </div>
+                    <span v-if="demoError" class="text-sm font-bold text-cb-red" role="alert">{{ demoError }}</span>
+                    <span v-else class="text-sm text-cb-taupe">Demo otvorí ukážkové bistro bez registrácie – nič sa neposiela ani neúčtuje.</span>
+                    <span class="text-[15px] font-semibold text-cb-taupe">
+                        Už máte účet podniku?
+                        <a :href="loginUrl" class="font-bold text-cb-red hover:text-cb-red-dark">Prihlásiť sa do panela →</a>
+                    </span>
                 </div>
 
                 <div class="cb-glass flex flex-col gap-5 rounded-[32px] !bg-white p-[clamp(24px,3vw,36px)]">
@@ -694,6 +713,7 @@ const glass = (k: string) =>
                             <span class="text-[13px] font-extrabold uppercase tracking-[.06em] text-cb-beige">Podniky</span>
                             <a href="#podniky" class="text-cb-cream no-underline hover:text-white">Ceny a provízie</a>
                             <a :href="registerUrl" class="text-cb-cream no-underline hover:text-white">Registrácia podniku</a>
+                            <button type="button" class="text-left text-cb-cream hover:text-white" @click="startDemo">Demo panel</button>
                             <a :href="route('login')" class="text-cb-cream no-underline hover:text-white">Prihlásenie do panela</a>
                         </div>
                         <div class="flex flex-col gap-2.5">

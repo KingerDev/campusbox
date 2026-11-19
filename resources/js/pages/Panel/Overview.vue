@@ -108,7 +108,7 @@ const dismissOnb = () => router.post(route('panel.onboarding.dismiss'), {}, { pr
                 <span><span class="text-cb-green">●</span> Vydané {{ kpi.issued }}</span>
                 <span><span class="text-cb-or">●</span> Čaká {{ kpi.waiting }}</span>
                 <span>● Voľné {{ kpi.free }}</span>
-                <span>Výdaj {{ panel.business.rescueSlot }}</span>
+                <span>Záchrana do {{ panel.business.rescueUntil }}</span>
             </div>
         </div>
 
@@ -188,9 +188,15 @@ const dismissOnb = () => router.post(route('panel.onboarding.dismiss'), {}, { pr
                     <span class="text-lg font-extrabold">Dnešná ponuka</span>
                     <span
                         class="flex h-[26px] items-center rounded-full px-2.5 text-xs font-extrabold"
-                        :class="offer.length ? 'bg-[rgba(21,128,61,.12)] text-cb-green' : 'bg-cb-panel text-cb-taupe'"
+                        :class="
+                            !offer.length
+                                ? 'bg-cb-panel text-cb-taupe'
+                                : panel.business.approved
+                                  ? 'bg-[rgba(21,128,61,.12)] text-cb-green'
+                                  : 'bg-[rgba(255,122,26,.16)] text-cb-or-dark'
+                        "
                     >
-                        {{ offer.length ? 'Zverejnená' : 'Nezverejnená' }}
+                        {{ !offer.length ? 'Nezverejnená' : panel.business.approved ? 'Zverejnená' : 'Čaká na overenie podniku' }}
                     </span>
                 </div>
                 <div v-for="o in offer" :key="o.name" class="flex justify-between gap-2.5 border-t-[1.5px] border-cb-line py-1.5 text-[14.5px]">
@@ -199,7 +205,7 @@ const dismissOnb = () => router.post(route('panel.onboarding.dismiss'), {}, { pr
                 </div>
                 <span v-if="!offer.length" class="text-sm text-cb-taupe">Na dnes ešte nič nepredávate.</span>
                 <Link v-if="can('offer')" :href="route('panel.offer')" class="text-sm font-bold text-cb-red">{{
-                    offer.length ? 'Upraviť ponuku →' : 'Zverejniť ponuku →'
+                    offer.length ? 'Upraviť ponuku →' : panel.business.approved ? 'Zverejniť ponuku →' : 'Pripraviť ponuku →'
                 }}</Link>
             </div>
         </div>

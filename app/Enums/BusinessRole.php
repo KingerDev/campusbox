@@ -33,6 +33,12 @@ enum BusinessRole: string
         }, true);
     }
 
+    /** Kto vidí sumy a tržby, musí mať zapnuté dvojfaktorové overenie. */
+    public function requiresTwoFactor(): bool
+    {
+        return $this !== self::Worker;
+    }
+
     /** @return list<string> */
     public function abilities(): array
     {

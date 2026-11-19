@@ -2,8 +2,19 @@ import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 export interface PanelShared {
-    business: { id: number; name: string; approved: boolean; logo: string | null; rescueSlot: string };
-    user: { name: string };
+    business: {
+        id: number;
+        name: string;
+        approved: boolean;
+        rejected: boolean;
+        rejectionReason: string | null;
+        logo: string | null;
+        rescueUntil: string;
+        menuSlot: string;
+        demo: boolean;
+    };
+    user: { name: string; admin: boolean };
+    suggestTwoFactor: boolean;
     role: { key: 'majitel' | 'manazer' | 'pracovnik'; label: string };
     abilities: string[];
     counts: { new: number; ready: number; active: number };
@@ -21,6 +32,7 @@ export interface PanelOrder {
     status: 'nova' | 'prip' | 'hot' | 'cesta' | 'vyd' | 'zrus' | 'nahl' | 'odm';
     statusLabel: string;
     delivery: boolean;
+    menu: boolean;
     address: string | null;
     eta: string | null;
     reason: string | null;

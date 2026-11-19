@@ -76,7 +76,7 @@ onBeforeUnmount(stopCamera);
 </script>
 
 <template>
-    <PanelLayout title="Výdaj" :sub="'Okno výdaja ' + slot">
+    <PanelLayout title="Výdaj" :sub="slot">
         <div class="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] items-start gap-4">
             <div
                 class="relative flex h-[300px] flex-col items-start justify-end gap-2.5 overflow-hidden rounded-[30px] bg-[#1D1410] p-5 lg:h-[380px]"

@@ -52,6 +52,11 @@ class TeamController extends Controller
             'invite_token' => Str::random(48),
         ]);
 
+        // V ukážkovom podniku sa nič neposiela – inak by sa cez demo dali rozosielať e‑maily komukoľvek.
+        if ($business->is_demo) {
+            return back()->with('toast', 'Pozvánka pridaná. V deme sa e‑mail neposiela.');
+        }
+
         Mail::to($member->email)->send(new TeamInvitation($member));
 
         return back()->with('toast', 'Pozvánka odoslaná na '.$member->email);

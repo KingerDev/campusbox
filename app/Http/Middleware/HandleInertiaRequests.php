@@ -42,6 +42,8 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+            // Lokálne zapne vývojárske pomôcky vo formulároch (tlačidlo „Vyplniť testovacie údaje“).
+            'devTools' => app()->isLocal(),
             'auth' => [
                 'user' => $request->user(),
             ],

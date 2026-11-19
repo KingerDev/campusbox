@@ -14,7 +14,7 @@ class ExpireOrders extends Command
 {
     protected $signature = 'campusbox:expire-orders';
 
-    protected $description = 'Zruší objednávky, ktoré neboli vydané do 15 minút po konci okna výdaja';
+    protected $description = 'Zruší objednávky, ktoré neboli vydané do 15 minút po konci výdaja';
 
     public function handle(): int
     {
@@ -25,8 +25,10 @@ class ExpireOrders extends Command
             ->whereDate('pickup_date', '<=', today())
             ->each(function (Order $order) use (&$expired) {
                 $business = $order->business;
-                $slot = $order->items->contains('type', 'menu') ? $business->menu_slot : $business->rescue_slot;
-                $end = trim(explode('–', $slot)[1] ?? '23:59');
+                // Menu má okno od–do, záchrana len čas „do“ (predvolene záverečná).
+                $end = $order->items->contains('type', 'menu')
+                    ? trim(explode('–', $business->menu_slot)[1] ?? '23:59')
+                    : $business->rescueUntil();
                 $deadline = Carbon::parse($order->pickup_date->toDateString().' '.$end)->addMinutes(15);
 
                 if (now()->greaterThan($deadline)) {

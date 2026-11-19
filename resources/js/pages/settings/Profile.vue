@@ -1,111 +1,100 @@
 <script setup lang="ts">
-import { TransitionRoot } from '@headlessui/vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import AccountLayout from '@/layouts/AccountLayout.vue';
+import { type SharedData, type User } from '@/types';
+import { useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
-import DeleteUser from '@/components/DeleteUser.vue';
-import HeadingSmall from '@/components/HeadingSmall.vue';
-import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/AppLayout.vue';
-import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { type BreadcrumbItem, type SharedData, type User } from '@/types';
-
-interface Props {
-    mustVerifyEmail: boolean;
-    status?: string;
-    className?: string;
-}
-
-defineProps<Props>();
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Profile settings',
-        href: '/settings/profile',
-    },
-];
+const props = defineProps<{ ownedBusinesses: string[] }>();
+const owned = computed(() => props.ownedBusinesses.join(', '));
 
 const page = usePage<SharedData>();
 const user = page.props.auth.user as User;
 
-const form = useForm({
-    name: user.name,
-    email: user.email,
-});
+const form = useForm({ name: user.name, email: user.email });
+const submit = () => form.patch(route('profile.update'), { preserveScroll: true });
 
-const submit = () => {
-    form.patch(route('profile.update'), {
-        preserveScroll: true,
-    });
+// Zmazanie účtu: až po rozbalení a zadaní hesla.
+const removing = ref(false);
+const remove = useForm({ password: '' });
+const toggleRemove = () => {
+    removing.value = !removing.value;
+    remove.reset();
+    remove.clearErrors();
 };
+const submitRemove = () => remove.delete(route('profile.destroy'), { preserveScroll: true, onFinish: () => remove.reset() });
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Profile settings" />
+    <AccountLayout title="Moje údaje" sub="Meno vidí váš tím v paneli. E‑mailom sa prihlasujete a chodia naň upozornenia.">
+        <form class="flex flex-col gap-3.5" @submit.prevent="submit">
+            <label class="flex flex-col gap-[7px]">
+                <span class="plabel">Meno a priezvisko</span>
+                <input v-model="form.name" required autocomplete="name" class="pinput" :class="form.errors.name && '!border-cb-red'" />
+                <span v-if="form.errors.name" class="text-sm font-bold text-cb-red" role="alert">{{ form.errors.name }}</span>
+            </label>
+            <label class="flex flex-col gap-[7px]">
+                <span class="plabel">E‑mail</span>
+                <input
+                    v-model="form.email"
+                    type="email"
+                    required
+                    autocomplete="username"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    class="pinput"
+                    :class="form.errors.email && '!border-cb-red'"
+                />
+                <span v-if="form.errors.email" class="text-sm font-bold text-cb-red" role="alert">{{ form.errors.email }}</span>
+            </label>
+            <div class="flex flex-wrap items-center gap-4 pt-1">
+                <button type="submit" class="pbtn pbtn-red" :disabled="form.processing || !form.isDirty">
+                    <span>Uložiť údaje</span><span>→</span>
+                </button>
+                <span v-if="form.recentlySuccessful" class="text-sm font-bold text-cb-green" role="status">Uložené ✓</span>
+            </div>
+        </form>
 
-        <SettingsLayout>
-            <div class="flex flex-col space-y-6">
-                <HeadingSmall title="Profile information" description="Update your name and email address" />
-
-                <form @submit.prevent="submit" class="space-y-6">
-                    <div class="grid gap-2">
-                        <Label for="name">Name</Label>
-                        <Input id="name" class="mt-1 block w-full" v-model="form.name" required autocomplete="name" placeholder="Full name" />
-                        <InputError class="mt-2" :message="form.errors.name" />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="email">Email address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            class="mt-1 block w-full"
-                            v-model="form.email"
+        <template #after>
+            <section class="pcard flex w-full max-w-[620px] flex-col gap-3 p-5 lg:p-6">
+                <div class="flex flex-col gap-1">
+                    <h2 class="m-0 text-[20px] font-extrabold tracking-[-.01em]">Zmazať účet</h2>
+                    <span v-if="!ownedBusinesses.length" class="text-sm leading-[1.45] text-cb-taupe">
+                        Zmaže sa váš prihlasovací účet a prístup do panela. Nedá sa to vrátiť späť.
+                    </span>
+                </div>
+                <div
+                    v-if="ownedBusinesses.length"
+                    class="flex flex-col gap-1 rounded-2xl bg-[rgba(255,122,26,.14)] px-4 py-3 text-sm font-semibold leading-[1.45] text-cb-or-dark"
+                >
+                    <span class="font-black">Ste majiteľom podniku {{ owned }}.</span>
+                    <span class="text-cb-ink">
+                        Bez majiteľa by nemal kto spravovať objednávky a výplaty, preto sa účet zmazať nedá. Ak chcete podnik odovzdať niekomu inému
+                        alebo ho zrušiť, napíšte nám na
+                        <a href="mailto:ahoj@campusbox.sk" class="font-bold underline">ahoj@campusbox.sk</a>.
+                    </span>
+                </div>
+                <button v-else-if="!removing" type="button" class="pbtn pbtn-ghost h-12 self-start text-[15px] text-cb-red" @click="toggleRemove">
+                    Zmazať účet
+                </button>
+                <form v-else class="flex flex-col gap-3 rounded-3xl bg-[rgba(219,59,34,.08)] px-5 py-[18px]" @submit.prevent="submitRemove">
+                    <label class="flex flex-col gap-[7px]">
+                        <span class="plabel">Pre potvrdenie zadajte heslo</span>
+                        <input
+                            v-model="remove.password"
+                            type="password"
                             required
-                            autocomplete="username"
-                            placeholder="Email address"
+                            autocomplete="current-password"
+                            class="pinput"
+                            :class="remove.errors.password && '!border-cb-red'"
                         />
-                        <InputError class="mt-2" :message="form.errors.email" />
-                    </div>
-
-                    <div v-if="mustVerifyEmail && !user.email_verified_at">
-                        <p class="mt-2 text-sm text-neutral-800">
-                            Your email address is unverified.
-                            <Link
-                                :href="route('verification.send')"
-                                method="post"
-                                as="button"
-                                class="focus:outline-hidden rounded-md text-sm text-neutral-600 underline hover:text-neutral-900 focus:ring-2 focus:ring-offset-2"
-                            >
-                                Click here to re-send the verification email.
-                            </Link>
-                        </p>
-
-                        <div v-if="status === 'verification-link-sent'" class="mt-2 text-sm font-medium text-green-600">
-                            A new verification link has been sent to your email address.
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <Button :disabled="form.processing">Save</Button>
-
-                        <TransitionRoot
-                            :show="form.recentlySuccessful"
-                            enter="transition ease-in-out"
-                            enter-from="opacity-0"
-                            leave="transition ease-in-out"
-                            leave-to="opacity-0"
-                        >
-                            <p class="text-sm text-neutral-600">Saved.</p>
-                        </TransitionRoot>
+                    </label>
+                    <span v-if="remove.errors.password" class="text-sm font-bold text-cb-red" role="alert">{{ remove.errors.password }}</span>
+                    <div class="flex flex-wrap gap-2.5">
+                        <button type="submit" class="pbtn pbtn-red h-12 text-[15px]" :disabled="remove.processing">Natrvalo zmazať účet</button>
+                        <button type="button" class="pbtn pbtn-ghost h-12 text-[15px]" @click="toggleRemove">Zrušiť</button>
                     </div>
                 </form>
-            </div>
-
-            <DeleteUser />
-        </SettingsLayout>
-    </AppLayout>
+            </section>
+        </template>
+    </AccountLayout>
 </template>

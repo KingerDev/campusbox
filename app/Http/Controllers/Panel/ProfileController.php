@@ -23,8 +23,7 @@ class ProfileController extends Controller
             'profile' => [
                 'name' => $b->name,
                 'description' => $b->description ?? '',
-                'types' => $b->types,
-                'categories' => $b->categories,
+                'type' => $b->type,
                 'phone' => $b->phone ?? '',
                 'public_email' => $b->public_email ?? '',
                 'web' => $b->web ?? '',
@@ -47,7 +46,8 @@ class ProfileController extends Controller
             'canBill' => $billing,
             'delivery' => ['on' => $b->delivery_enabled, 'fee' => (float) $b->delivery_fee],
             'types' => Business::TYPES,
-            'categories' => Business::CATEGORIES,
+            // Len na zobrazenie: kategórie vyplývajú z jedál v menu.
+            'categories' => $b->categories(),
         ]);
     }
 
@@ -58,10 +58,7 @@ class ProfileController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:200'],
-            'types' => ['required', 'array', 'min:1'],
-            'types.*' => [Rule::in(Business::TYPES)],
-            'categories' => ['required', 'array', 'min:1'],
-            'categories.*' => [Rule::in(Business::CATEGORIES)],
+            'type' => ['required', 'string', Rule::in(Business::TYPES)],
             'phone' => ['nullable', 'string', 'max:40'],
             'public_email' => ['nullable', 'email', 'max:120'],
             'web' => ['nullable', 'string', 'max:120'],
@@ -78,8 +75,8 @@ class ProfileController extends Controller
         ] : []), Business::locationMessages() + [
             'name.required' => 'Vyplňte názov podniku.',
             'address.required' => 'Vyplňte adresu.',
-            'types.required' => 'Vyberte aspoň jeden typ podniku.',
-            'categories.required' => 'Vyberte aspoň jednu kategóriu.',
+            'type.required' => 'Vyberte typ podniku.',
+            'type.in' => 'Vyberte typ podniku zo zoznamu.',
             'iban.regex' => 'Skontrolujte IBAN.',
             'ico.regex' => 'IČO má 6 až 8 číslic.',
         ]);
@@ -98,6 +95,9 @@ class ProfileController extends Controller
         ], ['image.image' => 'Nahrajte obrázok (JPG alebo PNG).', 'image.max' => 'Obrázok môže mať najviac 4 MB.']);
 
         $business = $current->business();
+        if ($business->is_demo) {
+            return back()->with('toast', 'V deme sa obrázky nenahrávajú.');
+        }
         $column = $data['kind'].'_path';
         if ($business->$column) {
             Storage::disk('public')->delete($business->$column);

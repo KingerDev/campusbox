@@ -36,6 +36,7 @@ class MenuController extends Controller
                     'allergens' => $d->allergens ?? [],
                     'groups' => $d->option_groups ?? [],
                     'vegetarian' => $d->vegetarian,
+                    'vegan' => $d->vegan,
                     'popular' => $d->popular,
                     'photo' => $d->photoUrl(),
                     'ph' => OfferBoard::PLACEHOLDER[$d->category] ?? '#E3C3A0',
@@ -147,6 +148,7 @@ class MenuController extends Controller
             'description' => ['nullable', 'string', 'max:300'],
             'price' => ['required', 'regex:/^\d{1,3}([.,]\d{1,2})?$/'],
             'vegetarian' => ['boolean'],
+            'vegan' => ['boolean'],
             'popular' => ['boolean'],
             'allergens' => ['array'],
             'allergens.*' => [Rule::in(Dish::ALLERGENS)],
@@ -175,7 +177,9 @@ class MenuController extends Controller
             'category' => $data['category'],
             'description' => $data['description'] ?? null,
             'price' => round((float) str_replace(',', '.', $data['price']), 2),
-            'vegetarian' => (bool) ($data['vegetarian'] ?? false),
+            // Vegánske jedlo je vždy aj vegetariánske.
+            'vegetarian' => (bool) ($data['vegetarian'] ?? false) || (bool) ($data['vegan'] ?? false),
+            'vegan' => (bool) ($data['vegan'] ?? false),
             'popular' => (bool) ($data['popular'] ?? false),
             'allergens' => array_values($data['allergens'] ?? []),
             'option_groups' => array_map(fn ($g) => [
@@ -190,7 +194,8 @@ class MenuController extends Controller
 
     private function storePhoto(Request $request, Dish $dish): void
     {
-        if (! $request->hasFile('photo')) {
+        // V ukážkovom podniku sa súbory neukladajú (jedlo sa uloží bez fotky).
+        if (! $request->hasFile('photo') || $dish->business->is_demo) {
             return;
         }
         if ($dish->photo_path) {

@@ -3,15 +3,15 @@
 namespace App\Models;
 
 use App\Enums\BusinessRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 class Business extends Model
 {
-    public const TYPES = ['Bistro', 'Reštaurácia', 'Pekáreň', 'Kaviareň', 'Cukráreň', 'Pizzeria', 'Ázijská kuchyňa', 'Vegetariánska', 'Potraviny'];
-
-    public const CATEGORIES = ['Teplé jedlá', 'Polievky', 'Pečivo', 'Dezerty', 'Šaláty', 'Pizza', 'Sendviče', 'Káva'];
+    /** Typ podniku – podnik má práve jeden. */
+    public const TYPES = ['Bistro', 'Reštaurácia', 'Pekáreň', 'Kaviareň', 'Cukráreň', 'Pizzeria', 'Potraviny'];
 
     public const DAYS = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota', 'Nedeľa'];
 
@@ -20,8 +20,6 @@ class Business extends Model
     protected function casts(): array
     {
         return [
-            'types' => 'array',
-            'categories' => 'array',
             'opening_hours' => 'array',
             'delivery_enabled' => 'boolean',
             'delivery_fee' => 'decimal:2',
@@ -31,6 +29,9 @@ class Business extends Model
             'terms_accepted_at' => 'datetime',
             'issue_tried_at' => 'datetime',
             'onboarding_dismissed_at' => 'datetime',
+            'is_demo' => 'boolean',
+            'demo_expires_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -47,7 +48,8 @@ class Business extends Model
     /** Validácia otváracích hodín: 7 riadkov [deň, od, do, zatvorené]. */
     public static function hoursRules(): array
     {
-        $time = ['nullable', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'];
+        // Časy zatvoreného dňa sa nekontrolujú (môže v nich zostať čokoľvek), otvorený deň ich musí mať.
+        $time = ['exclude_if:opening_hours.*.3,true', 'required', 'regex:/^([01]?\d|2[0-3]):[0-5]\d$/'];
 
         return [
             'opening_hours' => ['required', 'array', 'size:7'],
@@ -75,6 +77,8 @@ class Business extends Model
             'longitude.between' => 'Poloha podniku musí byť na Slovensku.',
             'opening_hours.*.1.regex' => 'Čas otvorenia zadajte vo formáte 10:00.',
             'opening_hours.*.2.regex' => 'Čas zatvorenia zadajte vo formáte 21:00.',
+            'opening_hours.*.1.required' => 'Doplňte čas otvorenia, alebo deň označte ako zatvorený.',
+            'opening_hours.*.2.required' => 'Doplňte čas zatvorenia, alebo deň označte ako zatvorený.',
         ];
     }
 
@@ -82,10 +86,31 @@ class Business extends Model
     public static function normalizeHours(array $hours): array
     {
         return array_map(
-            fn (array $h, int $i) => [self::DAYS[$i], (string) ($h[1] ?? ''), (string) ($h[2] ?? ''), (bool) ($h[3] ?? false)],
+            fn (array $h, int $i) => ($h[3] ?? false)
+                ? [self::DAYS[$i], '', '', true]
+                : [self::DAYS[$i], self::padTime((string) ($h[1] ?? '')), self::padTime((string) ($h[2] ?? '')), false],
             array_values($hours),
             array_keys(array_values($hours)),
         );
+    }
+
+    /** „9:30“ → „09:30“ */
+    private static function padTime(string $time): string
+    {
+        return strlen($time) === 4 ? '0'.$time : $time;
+    }
+
+    /**
+     * Kategórie, v ktorých podnik študenti nájdu. Neukladajú sa – vyplývajú z jedál v menu,
+     * takže pridaná polievka znamená, že podnik je medzi polievkami.
+     *
+     * @return list<string>
+     */
+    public function categories(): array
+    {
+        $used = $this->dishes()->distinct()->pluck('category')->all();
+
+        return array_values(array_filter(Dish::CATEGORIES, fn (string $c) => in_array($c, $used, true)));
     }
 
     public function members(): HasMany
@@ -118,6 +143,15 @@ class Business extends Model
         return $this->hasMany(Payout::class);
     }
 
+    /**
+     * Podniky, ktoré smú vidieť študenti v appke: overené správcom a nie ukážkové.
+     * Každý verejný výpis podnikov a ponúk musí ísť cez tento scope.
+     */
+    public function scopeVisibleToStudents(Builder $query): Builder
+    {
+        return $query->where('status', 'approved')->where('is_demo', false);
+    }
+
     public function isApproved(): bool
     {
         return $this->status === 'approved';
@@ -144,5 +178,22 @@ class Business extends Model
         $hours = $this->opening_hours ?: self::defaultHours();
 
         return $hours[now()->dayOfWeekIso - 1] ?? ['', '', '', true];
+    }
+
+    /** Dnešná záverečná (HH:MM), alebo null, keď je dnes zatvorené. */
+    public function closingTime(): ?string
+    {
+        $today = $this->todayHours();
+
+        return ($today[3] ?? false) || ! ($today[2] ?? '') ? null : $today[2];
+    }
+
+    /**
+     * Dokedy si študenti vyzdvihnú záchranu jedla: vlastný čas podniku, inak dnešná záverečná.
+     * Objednávať sa dá od zverejnenia ponuky až do tohto času alebo do vypredania.
+     */
+    public function rescueUntil(): string
+    {
+        return $this->rescue_until ?: ($this->closingTime() ?? '23:59');
     }
 }

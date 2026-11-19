@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Panel\DemoController;
 use App\Http\Controllers\Panel\InvitationController;
 use App\Http\Controllers\Panel\IssueController;
 use App\Http\Controllers\Panel\MenuController;
@@ -15,14 +16,19 @@ use Inertia\Inertia;
 
 Route::prefix('panel')->name('panel.')->group(function () {
     // Registrácia podniku (pre hostí aj prihlásených bez podniku).
+    // Každý throttle má vlastný prefix – bez neho by všetky routy zdieľali jedno počítadlo na IP/používateľa.
     Route::get('registracia', [RegistrationController::class, 'create'])->name('registration');
-    Route::post('registracia/overit', [RegistrationController::class, 'validateStep'])->middleware('throttle:30,1')->name('registration.validate');
-    Route::post('registracia', [RegistrationController::class, 'store'])->middleware('throttle:6,1')->name('registration.store');
+    Route::post('registracia/overit', [RegistrationController::class, 'validateStep'])->middleware('throttle:30,1,reg-step')->name('registration.validate');
+    Route::post('registracia', [RegistrationController::class, 'store'])->middleware('throttle:10,1,reg-store')->name('registration.store');
 
     Route::get('pozvanka/{token}', [InvitationController::class, 'show'])->name('invitation');
-    Route::post('pozvanka/{token}', [InvitationController::class, 'accept'])->middleware('throttle:10,1')->name('invitation.accept');
+    Route::post('pozvanka/{token}', [InvitationController::class, 'accept'])->middleware('throttle:10,1,invite-accept')->name('invitation.accept');
 
-    Route::middleware(['auth', 'panel'])->group(function () {
+    // Ukážkový podnik: každý návštevník dostane vlastnú kópiu (POST, aby ju nezakladali roboty a prednačítanie odkazov).
+    Route::post('demo', [DemoController::class, 'store'])->middleware('throttle:5,10,demo')->name('demo');
+    Route::post('demo/ukoncit', [DemoController::class, 'leave'])->middleware('auth')->name('demo.leave');
+
+    Route::middleware(['auth', 'panel', 'panel.2fa'])->group(function () {
         Route::get('/', OverviewController::class)->name('overview');
         Route::get('viac', fn () => Inertia::render('Panel/More'))->name('more');
 
@@ -59,7 +65,7 @@ Route::prefix('panel')->name('panel.')->group(function () {
 
         Route::middleware('panel.can:team')->group(function () {
             Route::get('tim', [TeamController::class, 'index'])->name('team');
-            Route::post('tim', [TeamController::class, 'invite'])->middleware('throttle:20,1')->name('team.invite');
+            Route::post('tim', [TeamController::class, 'invite'])->middleware('throttle:20,1,team-invite')->name('team.invite');
             Route::put('tim/{member}', [TeamController::class, 'update'])->name('team.update');
             Route::delete('tim/{member}', [TeamController::class, 'destroy'])->name('team.destroy');
         });

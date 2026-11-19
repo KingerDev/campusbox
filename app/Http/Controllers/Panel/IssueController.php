@@ -33,7 +33,7 @@ class IssueController extends Controller
             'code' => $code,
             'found' => $found,
             'error' => $error,
-            'slot' => $business->rescue_slot,
+            'slot' => 'Záchrana do '.$business->rescueUntil().' · menu '.$business->menu_slot,
         ]);
     }
 }

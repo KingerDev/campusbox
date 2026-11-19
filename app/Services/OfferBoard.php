@@ -13,6 +13,7 @@ use Illuminate\Support\Collection;
  */
 class OfferBoard
 {
+    /** Predvolená bežná hodnota balíčka, kým si podnik nenastaví vlastnú. */
     public const SURPRISE_PRICE = 9.0;
 
     public const PLACEHOLDER = ['Teplé jedlo' => '#EFB08A', 'Polievka' => '#E9C46A', 'Pečivo' => '#F2C48D', 'Dezert' => '#F4A9A0', 'Šalát' => '#C9E2B3', 'Pizza' => '#E88A5B', 'Nápoj' => '#D9B08C'];
@@ -25,7 +26,7 @@ class OfferBoard
 
         $rows = [];
         if ($type === OfferType::Rescue) {
-            $rows[] = ['key' => 'surprise', 'dishId' => null, 'name' => 'Balíček prekvapenie', 'sub' => 'Mix toho, čo zostane', 'regular' => self::SURPRISE_PRICE, 'ph' => '#F6B77E'];
+            $rows[] = ['key' => 'surprise', 'dishId' => null, 'name' => 'Balíček prekvapenie', 'sub' => 'Mix toho, čo zostane', 'regular' => (float) ($business->surprise_value ?? self::SURPRISE_PRICE), 'ph' => '#F6B77E'];
         }
         foreach ($dishes as $dish) {
             $rows[] = ['key' => 'dish:'.$dish->id, 'dishId' => $dish->id, 'name' => $dish->name, 'sub' => $dish->category, 'regular' => (float) $dish->price, 'ph' => self::PLACEHOLDER[$dish->category] ?? '#E3C3A0', 'photo' => $dish->photoUrl()];

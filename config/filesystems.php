@@ -41,7 +41,9 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            // Relatívna adresa: fotky fungujú na akomkoľvek hoste a porte bez ohľadu na APP_URL
+            // (s APP_URL=http://localhost a serverom na :8123 sa predtým nenačítali). Pre API či e‑maily ju obaľte do url().
+            'url' => '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

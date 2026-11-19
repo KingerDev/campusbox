@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { sampleDish } from '@/composables/useDevFill';
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import DevFill from './DevFill.vue';
 import PChip from './PChip.vue';
+import PhotoEditor from './PhotoEditor.vue';
 import PToggle from './PToggle.vue';
 
 export interface OptionGroup {
@@ -21,6 +24,7 @@ export interface MenuDish {
     allergens: string[];
     groups: OptionGroup[];
     vegetarian: boolean;
+    vegan?: boolean;
     popular: boolean;
     photo: string | null;
     ph: string;
@@ -45,6 +49,7 @@ const form = useForm({
     description: d?.description ?? '',
     price: d ? d.price.toFixed(2).replace('.', ',') : '',
     vegetarian: d?.vegetarian ?? false,
+    vegan: d?.vegan ?? false,
     popular: d?.popular ?? false,
     allergens: [...(d?.allergens ?? [])],
     groups: JSON.parse(JSON.stringify(d?.groups ?? [])) as OptionGroup[],
@@ -53,11 +58,19 @@ const form = useForm({
 
 const tab = ref<'zaklad' | 'alg' | 'opt'>('zaklad');
 const preview = ref<string | null>(d?.photo ?? null);
+// Vybraná fotka ide najprv do editora (orez, filter, náhľad v appke); do formulára sa dostane až výsledok.
+const editing = ref<string | null>(null);
 const onPhoto = (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // aby sa dal ten istý súbor vybrať znova
     if (!file) return;
+    editing.value = URL.createObjectURL(file);
+};
+const onPhotoApplied = (file: File, url: string) => {
     form.photo = file;
-    preview.value = URL.createObjectURL(file);
+    preview.value = url;
+    editing.value = null;
 };
 
 const toggleAlg = (a: string) => (form.allergens = form.allergens.includes(a) ? form.allergens.filter((x) => x !== a) : [...form.allergens, a]);
@@ -70,6 +83,30 @@ const rule = (g: OptionGroup) =>
     g.opts.length;
 
 const errorList = computed(() => Object.values(form.errors));
+
+/** Vývoj: vyplní formulár vzorovým jedlom (kategóriu berie len z ponúkaných). */
+// Vegánske jedlo je vždy aj vegetariánske: zapnutie vegánskeho zapne obe, vypnutie vegetariánskeho vypne obe.
+const vegan = computed({
+    get: () => !!form.vegan,
+    set: (v: boolean) => {
+        form.vegan = v;
+        if (v) form.vegetarian = true;
+    },
+});
+const vegetarian = computed({
+    get: () => form.vegetarian,
+    set: (v: boolean) => {
+        form.vegetarian = v;
+        if (!v) form.vegan = false;
+    },
+});
+
+const devFill = () => {
+    const s = sampleDish();
+    Object.assign(form, { vegan: false, ...s, category: props.categories.includes(s.category) ? s.category : props.categories[0] });
+    form.allergens = s.allergens.filter((a) => props.allergens.includes(a));
+    form.clearErrors();
+};
 
 const save = () => {
     const opts = { forceFormData: true, preserveScroll: true, onSuccess: () => emit('close') };
@@ -102,6 +139,7 @@ const destroy = () => {
         >
             <div class="flex items-center justify-between">
                 <span id="dish-title" class="text-2xl font-black tracking-[-.02em]">{{ dish ? 'Upraviť jedlo' : 'Nové jedlo' }}</span>
+                <DevFill class="ml-auto mr-2 !self-center" label="Vyplniť" @fill="devFill" />
                 <button
                     type="button"
                     class="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-lg font-bold"
@@ -146,6 +184,9 @@ const destroy = () => {
                     <span v-if="!preview" class="relative text-xs text-cb-brown">Pekná fotka zvýši predaj. JPG alebo PNG.</span>
                     <input type="file" accept="image/*" class="sr-only" @change="onPhoto" />
                 </label>
+                <button v-if="preview" type="button" class="-mt-1.5 self-start text-[13px] font-bold text-cb-red" @click="editing = preview">
+                    Orezať a upraviť fotku →
+                </button>
                 <label class="flex flex-col gap-[7px]"
                     ><span class="plabel">Názov jedla</span><input v-model="form.name" class="pinput bg-white"
                 /></label>
@@ -180,7 +221,10 @@ const destroy = () => {
                         <input v-model="form.price" inputmode="decimal" class="pinput bg-white font-bold" placeholder="7,90" />
                     </label>
                     <label class="flex h-[50px] cursor-pointer items-center gap-2.5 text-[14.5px] font-semibold">
-                        <PToggle v-model="form.vegetarian" label="Vegetariánske" />Vegetariánske
+                        <PToggle v-model="vegetarian" label="Vegetariánske" />Vegetariánske
+                    </label>
+                    <label class="flex h-[50px] cursor-pointer items-center gap-2.5 text-[14.5px] font-semibold">
+                        <PToggle v-model="vegan" label="Vegánske" />Vegánske
                     </label>
                 </div>
             </div>
@@ -312,5 +356,6 @@ const destroy = () => {
                 </button>
             </div>
         </div>
+        <PhotoEditor v-if="editing" :src="editing" :name="form.name" :price="form.price" @apply="onPhotoApplied" @cancel="editing = null" />
     </div>
 </template>

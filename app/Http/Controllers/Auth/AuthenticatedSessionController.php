@@ -29,7 +29,20 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        $user = $request->validateCredentials();
+
+        // Účet s dvojfaktorovým overením sa prihlási až po zadaní kódu.
+        if ($user->hasTwoFactor()) {
+            $request->session()->put('two_factor', [
+                'id' => $user->id,
+                'remember' => $request->boolean('remember'),
+                'at' => now()->timestamp,
+            ]);
+
+            return redirect()->route('two-factor.challenge');
+        }
+
+        Auth::login($user, $request->boolean('remember'));
 
         $request->session()->regenerate();
 

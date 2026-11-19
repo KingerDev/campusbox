@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import DevFill from '@/components/panel/DevFill.vue';
+import { sampleRegistration } from '@/composables/useDevFill';
+import EmailInput from '@/components/panel/EmailInput.vue';
+import PasswordInput from '@/components/panel/PasswordInput.vue';
+import PhoneInput from '@/components/panel/PhoneInput.vue';
+import DemoCard from '@/components/panel/DemoCard.vue';
 import CampusLogo from '@/components/landing/CampusLogo.vue';
-import PChip from '@/components/panel/PChip.vue';
 import MapPicker from '@/components/panel/MapPicker.vue';
 import OpeningHoursEditor, { type Hours } from '@/components/panel/OpeningHoursEditor.vue';
 import PToggle from '@/components/panel/PToggle.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
-const props = defineProps<{ types: string[]; categories: string[]; loggedIn: boolean; done: boolean }>();
+const props = defineProps<{ types: string[]; loggedIn: boolean; done: boolean }>();
 
 const form = useForm({
     meno: '',
@@ -16,8 +21,7 @@ const form = useForm({
     heslo: '',
     nazov: '',
     ico: '',
-    typ: [] as string[],
-    zost: [] as string[],
+    typ: '',
     adresa: '',
     latitude: null as number | null,
     longitude: null as number | null,
@@ -46,10 +50,10 @@ watch(
     (d) => d && (step.value = 4),
 );
 
-const STEPS = ['Účet', 'Podnik a kategória', 'Adresa a výdaj', 'Výplaty', 'Hotovo'];
+const STEPS = ['Účet', 'Podnik', 'Adresa a výdaj', 'Výplaty', 'Hotovo'];
 const COPY = [
     ['Krok 1 · Účet', 'Vytvorte si účet podniku', 'Tento účet bude mať rolu Majiteľ. Manažérov a pracovníkov pozvete neskôr.'],
-    ['Krok 2 · Podnik a kategória', 'Povedzte nám o podniku', 'Kategória určí, kde vás študenti v appke nájdu.'],
+    ['Krok 2 · Podnik', 'Povedzte nám o podniku', 'Typ podniku uvidia študenti v appke hneď pri vašom názve.'],
     ['Krok 3 · Adresa a výdaj', 'Kde si študenti jedlo vyzdvihnú', 'Adresa sa zobrazí na mape a v detaile ponuky.'],
     ['Krok 4 · Výplaty', 'Kam vám pošleme peniaze', 'Výplaty chodia na účet každých 14 dní, bez mesačného poplatku.'],
     ['Hotovo', 'Žiadosť je odoslaná', 'Podnik overíme do 24 hodín. Medzitým si môžete pridať jedlá a pozvať tím.'],
@@ -80,10 +84,14 @@ const AUTOCOMPLETE: Record<string, string> = {
     adresa: 'street-address',
     nazov: 'organization',
 };
-const TYPE_COLORS = ['#F09A72', '#EFB08A', '#F2C48D', '#D9B08C', '#F4A9A0', '#E88A5B', '#F0B65A', '#B9D7A1', '#E3C3A0'];
 
 const error = computed(() => Object.values(form.errors)[0] ?? '');
-const toggle = (key: 'typ' | 'zost', v: string) => (form[key] = form[key].includes(v) ? form[key].filter((x) => x !== v) : [...form[key], v]);
+
+/** Vývoj: vyplní všetky kroky naraz, potom stačí klikať „Pokračovať“. */
+const devFill = () => {
+    Object.assign(form, sampleRegistration());
+    form.clearErrors();
+};
 
 const next = () => {
     if (step.value === 4) return router.visit(route('panel.menu'));
@@ -168,10 +176,17 @@ const nextLabel = computed(() => (step.value === 4 ? 'Prejsť do panela' : step.
                 <span class="text-[15px] leading-[1.45] text-cb-taupe [text-wrap:pretty]">{{ COPY[step][2] }}</span>
             </div>
 
+            <DevFill v-if="step < 4" label="Vyplniť všetky kroky testovacími údajmi" @fill="devFill" />
+            <DemoCard v-if="step === 0" />
+
             <div v-if="step < 4" class="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5">
                 <label v-for="[k, l, type] in FIELDS[step]" :key="k" class="flex flex-col gap-[7px]">
                     <span class="plabel">{{ l }}</span>
+                    <EmailInput v-if="k === 'email'" v-model="form.email" :error="!!form.errors.email" />
+                    <PhoneInput v-else-if="k === 'tel'" v-model="form.tel" :error="!!form.errors.tel" />
+                    <PasswordInput v-else-if="k === 'heslo'" v-model="form.heslo" :error="!!form.errors.heslo" :personal="[form.meno, form.email]" />
                     <input
+                        v-else
                         v-model="form[k] as string"
                         :type="type ?? 'text'"
                         :autocomplete="AUTOCOMPLETE[k] ?? 'off'"
@@ -186,35 +201,32 @@ const nextLabel = computed(() => (step.value === 4 ? 'Prejsť do panela' : step.
                 <div class="flex flex-col gap-2.5">
                     <span class="flex flex-col gap-0.5"
                         ><span class="plabel">Typ podniku</span
-                        ><span class="text-[12.5px] text-cb-taupe">Môžete vybrať viac, napr. bistro aj pizzeria.</span></span
+                        ><span class="text-[12.5px] text-cb-taupe">Vyberte jeden, ktorý vás vystihuje najlepšie.</span></span
                     >
-                    <div class="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2">
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2" role="radiogroup" aria-label="Typ podniku">
                         <button
-                            v-for="(t, i) in types"
+                            v-for="t in types"
                             :key="t"
                             type="button"
-                            class="box-border flex min-h-16 items-center gap-2.5 rounded-[20px] border-[1.5px] px-3.5 py-2 text-left text-sm font-bold"
-                            :class="form.typ.includes(t) ? 'border-cb-ink bg-cb-ink text-cb-cream' : 'border-cb-line bg-white'"
-                            :aria-pressed="form.typ.includes(t)"
-                            @click="toggle('typ', t)"
+                            role="radio"
+                            class="box-border flex min-h-14 items-center gap-2.5 rounded-[20px] border-[1.5px] px-3.5 py-2 text-left text-sm font-bold"
+                            :class="form.typ === t ? 'border-cb-ink bg-cb-ink text-cb-cream' : 'border-cb-line bg-white'"
+                            :aria-checked="form.typ === t"
+                            @click="form.typ = t"
                         >
-                            <span class="flex h-7 w-7 flex-none items-center justify-center rounded-full text-sm font-black text-white" :style="{ background: TYPE_COLORS[i] }" aria-hidden="true">
-                                {{ form.typ.includes(t) ? '✓' : '' }}
+                            <span
+                                class="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full border-2 text-[12px] font-black"
+                                :class="form.typ === t ? 'border-cb-red bg-cb-red text-white' : 'border-cb-line bg-white'"
+                                aria-hidden="true"
+                            >
+                                {{ form.typ === t ? '✓' : '' }}
                             </span>
                             <span class="min-w-0 leading-tight [overflow-wrap:anywhere]">{{ t }}</span>
                         </button>
                     </div>
-                </div>
-                <div class="flex flex-col gap-2.5">
-                    <span class="flex flex-col gap-0.5"
-                        ><span class="plabel">Čo vám zvyčajne zostáva</span
-                        ><span class="text-[12.5px] text-cb-taupe">Podľa toho vás študenti nájdu v kategóriách v appke.</span></span
-                    >
-                    <div class="flex flex-wrap gap-2">
-                        <PChip v-for="z in categories" :key="z" size="lg" :on="form.zost.includes(z)" @click="toggle('zost', z)"
-                            >{{ form.zost.includes(z) ? '✓ ' : '' }}{{ z }}</PChip
-                        >
-                    </div>
+                    <span class="text-[12.5px] leading-[1.45] text-cb-taupe">
+                        Kategórie jedál (polievky, pečivo, dezerty…) nevyberáte – doplnia sa samy podľa toho, čo pridáte do menu.
+                    </span>
                 </div>
             </template>
 

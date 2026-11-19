@@ -123,7 +123,7 @@ const metaL = (d: MenuDish) =>
         d.popular ? 'Obľúbené' : '',
         d.groups.length ? (d.groups.length === 1 ? '1 výber' : d.groups.length + ' výbery') : '',
         d.allergens.length ? 'alergény ' + d.allergens.length : '',
-        d.vegetarian ? 'vegetariánske' : '',
+        d.vegan ? 'vegánske' : d.vegetarian ? 'vegetariánske' : '',
     ]
         .filter(Boolean)
         .join(' · ');

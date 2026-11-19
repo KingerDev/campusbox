@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import PChip from '@/components/panel/PChip.vue';
 import MapPicker from '@/components/panel/MapPicker.vue';
 import OpeningHoursEditor from '@/components/panel/OpeningHoursEditor.vue';
+import PChip from '@/components/panel/PChip.vue';
+import PhotoEditor from '@/components/panel/PhotoEditor.vue';
 import { eur } from '@/composables/usePanel';
 import PanelLayout from '@/layouts/PanelLayout.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
@@ -11,8 +12,7 @@ type Hours = [string, string, string, boolean][];
 interface ProfileData {
     name: string;
     description: string;
-    types: string[];
-    categories: string[];
+    type: string;
     phone: string;
     public_email: string;
     web: string;
@@ -42,10 +42,6 @@ const props = defineProps<{
 
 const form = useForm<ProfileData>(JSON.parse(JSON.stringify(props.profile)));
 
-const toggle = (key: 'types' | 'categories', v: string) => {
-    const list = form[key];
-    form[key] = list.includes(v) ? (list.length > 1 ? list.filter((x) => x !== v) : list) : [...list, v];
-};
 const save = () => form.put(route('panel.profile.update'), { preserveScroll: true, onSuccess: () => form.defaults() });
 const discard = () => form.reset();
 
@@ -66,14 +62,22 @@ const BILL: [keyof ProfileData, string][] = [
 
 // ---- obrázky ----
 const uploading = ref<string | null>(null);
-const upload = (kind: 'cover' | 'logo', e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+// Vybraný obrázok ide najprv do editora (orez, filter, náhľad v appke), nahrá sa až výsledok.
+const editing = ref<{ kind: 'cover' | 'logo'; src: string } | null>(null);
+const pick = (kind: 'cover' | 'logo', e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // aby sa dal ten istý súbor vybrať znova
+    if (file) editing.value = { kind, src: URL.createObjectURL(file) };
+};
+const upload = (file: File) => {
+    if (!editing.value) return;
+    const kind = editing.value.kind;
     uploading.value = kind;
     router.post(
         route('panel.profile.upload'),
         { kind, image: file },
-        { forceFormData: true, preserveScroll: true, onFinish: () => (uploading.value = null) },
+        { forceFormData: true, preserveScroll: true, onSuccess: () => (editing.value = null), onFinish: () => (uploading.value = null) },
     );
 };
 
@@ -102,7 +106,7 @@ const errorList = computed(() => Object.values(form.errors));
                 class="absolute right-3.5 top-3.5 flex h-[38px] cursor-pointer items-center rounded-full bg-white/75 px-4 text-[13px] font-bold backdrop-blur-xl"
             >
                 {{ uploading === 'cover' ? 'Nahrávam…' : 'Zmeniť fotku' }}
-                <input type="file" accept="image/*" class="sr-only" @change="upload('cover', $event)" />
+                <input type="file" accept="image/*" class="sr-only" @change="pick('cover', $event)" />
             </label>
             <label
                 class="absolute -bottom-[30px] left-5 box-border flex h-[84px] w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full border-4 border-[#FFF2E4] bg-cb-ink text-[13px] font-black text-cb-cream"
@@ -110,7 +114,7 @@ const errorList = computed(() => Object.values(form.errors));
             >
                 <img v-if="logo" :src="logo" alt="Logo podniku" class="h-full w-full object-cover" />
                 <span v-else>{{ uploading === 'logo' ? '…' : 'logo' }}</span>
-                <input type="file" accept="image/*" class="sr-only" @change="upload('logo', $event)" />
+                <input type="file" accept="image/*" class="sr-only" @change="pick('logo', $event)" />
             </label>
         </div>
 
@@ -129,20 +133,30 @@ const errorList = computed(() => Object.values(form.errors));
                     </label>
                     <div class="flex flex-col gap-2">
                         <span class="flex flex-col gap-0.5"
-                            ><span class="plabel">Typ podniku</span><span class="text-[12.5px] text-cb-taupe">Môžete vybrať viac.</span></span
+                            ><span class="plabel">Typ podniku</span
+                            ><span class="text-[12.5px] text-cb-taupe">Vyberte jeden, ktorý vás vystihuje najlepšie.</span></span
                         >
-                        <div class="flex flex-wrap gap-1.5">
-                            <PChip v-for="t in types" :key="t" :on="form.types.includes(t)" @click="toggle('types', t)">{{ t }}</PChip>
+                        <div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Typ podniku">
+                            <PChip v-for="t in types" :key="t" :on="form.type === t" @click="form.type = t">{{ t }}</PChip>
                         </div>
                     </div>
                     <div class="flex flex-col gap-2">
                         <span class="flex flex-col gap-0.5"
                             ><span class="plabel">Kategórie v appke</span
-                            ><span class="text-[12.5px] text-cb-taupe">V týchto kategóriách vás študenti nájdu.</span></span
+                            ><span class="text-[12.5px] text-cb-taupe"
+                                >Nevyberajú sa – berieme ich z jedál vo vašom menu. Pridáte polievku a študenti vás nájdu medzi polievkami.</span
+                            ></span
                         >
-                        <div class="flex flex-wrap gap-1.5">
-                            <PChip v-for="c in categories" :key="c" :on="form.categories.includes(c)" @click="toggle('categories', c)">{{ c }}</PChip>
+                        <div v-if="categories.length" class="flex flex-wrap gap-1.5">
+                            <span
+                                v-for="c in categories"
+                                :key="c"
+                                class="flex h-[34px] items-center rounded-full bg-cb-panel px-3.5 text-[13.5px] font-bold"
+                                >{{ c }}</span
+                            >
                         </div>
+                        <span v-else class="text-[13.5px] font-semibold text-cb-or-dark">Zatiaľ žiadne – pridajte prvé jedlo do menu.</span>
+                        <Link :href="route('panel.menu')" class="self-start text-[13px] font-bold text-cb-red">Upraviť menu →</Link>
                     </div>
                 </div>
 
@@ -214,14 +228,14 @@ const errorList = computed(() => Object.values(form.errors));
                         </div>
                     </div>
                     <div class="flex flex-col gap-1.5 px-4 pb-4 pt-[30px]">
-                        <span class="text-[11.5px] font-bold uppercase tracking-[.05em] text-cb-red">{{ form.types.join(' · ') }}</span>
+                        <span class="text-[11.5px] font-bold uppercase tracking-[.05em] text-cb-red">{{ form.type }}</span>
                         <span class="text-[19px] font-extrabold tracking-[-.01em]">{{ form.name }}</span>
                         <span class="text-[13px] leading-[1.45] text-cb-taupe">{{ form.description }}</span>
                         <div class="mt-1 flex flex-col gap-1 border-t-[1.5px] border-cb-line pt-2.5 text-[13px]">
                             <span class="font-bold">{{ prevToday }}</span>
                             <span>{{ form.address }}</span>
                             <span class="text-cb-taupe">{{ prevDel }}</span>
-                            <span class="text-cb-taupe">{{ form.categories.join(' · ') }}</span>
+                            <span v-if="categories.length" class="text-cb-taupe">{{ categories.join(' · ') }}</span>
                             <span v-if="form.instagram" class="text-cb-taupe">{{ form.instagram }}</span>
                         </div>
                     </div>
@@ -248,5 +262,18 @@ const errorList = computed(() => Object.values(form.errors));
                 </button>
             </span>
         </div>
+        <PhotoEditor
+            v-if="editing"
+            :key="editing.src"
+            :src="editing.src"
+            :kind="editing.kind"
+            :name="form.name"
+            :type="form.type"
+            :cover="cover"
+            :logo="logo"
+            :busy="uploading !== null"
+            @apply="upload"
+            @cancel="editing = null"
+        />
     </PanelLayout>
 </template>

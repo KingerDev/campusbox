@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DemoCard from '@/components/panel/DemoCard.vue';
 import CampusAuthLayout from '@/layouts/CampusAuthLayout.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
@@ -41,5 +42,6 @@ const submit = () => form.post(route('login'), { onFinish: () => form.reset('pas
         <span class="text-sm text-cb-taupe"
             >Nemáte účet? <Link :href="route('panel.registration')" class="font-bold text-cb-red">Zaregistrujte podnik</Link></span
         >
+        <DemoCard />
     </CampusAuthLayout>
 </template>

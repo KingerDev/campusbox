@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CampusLogo from '@/components/landing/CampusLogo.vue';
 import ConfirmOrderModal from '@/components/panel/ConfirmOrderModal.vue';
+import TwoFactorNudge from '@/components/panel/TwoFactorNudge.vue';
 import { useOrderActions } from '@/composables/useOrderActions';
 import { usePanel, type PanelOrder } from '@/composables/usePanel';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -41,7 +42,8 @@ const isActive = (r: string) => route().current(r) || route().current(r + '.*');
 
 const TAB_KEYS: NavKey[] = ['prehlad', 'vydaj', 'rez', 'ponuka'];
 const tabs = computed(() => nav.value.filter((n) => TAB_KEYS.includes(n.key)).sort((a, b) => TAB_KEYS.indexOf(a.key) - TAB_KEYS.indexOf(b.key)));
-const moreActive = computed(() => route().current('panel.more') || nav.value.some((n) => !TAB_KEYS.includes(n.key) && isActive(n.route)));
+const onAccount = computed(() => ['profile.*', 'password.*', 'two-factor.*'].some((r) => route().current(r)));
+const moreActive = computed(() => route().current('panel.more') || onAccount.value || nav.value.some((n) => !TAB_KEYS.includes(n.key) && isActive(n.route)));
 
 // ---- toast ----
 const toast = ref<{ text: string; error: boolean } | null>(null);
@@ -171,7 +173,23 @@ const logout = () => router.post(route('logout'));
             <div class="flex-1" />
 
             <div class="flex flex-col gap-2 px-1">
-                <Link :href="route('profile.edit')" class="py-1 text-[12.5px] font-semibold text-cb-taupe hover:text-cb-ink">Môj účet a heslo →</Link>
+                <Link v-if="panel.user.admin" :href="route('admin.businesses')" class="py-1 text-[12.5px] font-bold text-cb-red"
+                    >Administrácia →</Link
+                >
+                <template v-if="!panel.business.demo">
+                    <Link
+                        :href="route('profile.edit')"
+                        class="py-1 text-[12.5px] hover:text-cb-ink"
+                        :class="onAccount && !route().current('two-factor.*') ? 'font-extrabold text-cb-ink' : 'font-semibold text-cb-taupe'"
+                        >Môj účet a heslo →</Link
+                    >
+                    <Link
+                        :href="route('two-factor.edit')"
+                        class="py-1 text-[12.5px] hover:text-cb-ink"
+                        :class="route().current('two-factor.*') ? 'font-extrabold text-cb-ink' : 'font-semibold text-cb-taupe'"
+                        >Dvojfaktorové overenie →</Link
+                    >
+                </template>
                 <button
                     type="button"
                     class="mt-1 box-border flex h-11 items-center gap-2 rounded-full border-[1.5px] border-cb-line px-3 text-sm font-bold hover:bg-cb-panel"
@@ -235,8 +253,41 @@ const logout = () => router.post(route('logout'));
             </div>
 
             <main class="box-border flex min-w-0 flex-1 flex-col gap-5 px-4 pb-[110px] pt-4 lg:px-9 lg:pb-10 lg:pt-8">
+                <TwoFactorNudge
+                    v-if="panel.suggestTwoFactor && !route().current('two-factor.*')"
+                    text="Pracujete s tržbami a výplatami. Zapnite si dvojfaktorové overenie, nech účet nechráni len heslo."
+                />
                 <div
-                    v-if="!panel.business.approved"
+                    v-if="panel.business.demo"
+                    class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[20px] bg-cb-ink px-4 py-3 text-sm font-semibold text-cb-cream"
+                >
+                    <span class="min-w-[220px] flex-1 [text-wrap:pretty]">
+                        <span class="font-black">Ukážkový podnik.</span> Všetko si pokojne vyskúšajte – nič sa neposiela ani neúčtuje a do 24 hodín sa
+                        zmaže.
+                    </span>
+                    <Link
+                        :href="route('panel.demo.leave')"
+                        method="post"
+                        as="button"
+                        class="flex h-9 flex-none items-center gap-2 rounded-full bg-cb-red px-4 text-[13.5px] font-bold text-white"
+                    >
+                        <span>Zaregistrovať vlastný podnik</span><span>→</span>
+                    </Link>
+                </div>
+                <div
+                    v-else-if="panel.business.rejected"
+                    class="flex flex-col gap-1 rounded-[20px] bg-[rgba(219,59,34,.12)] px-4 py-3 text-sm font-semibold text-cb-red-dark"
+                >
+                    <span class="font-black">Podnik sme zatiaľ nemohli overiť</span>
+                    <span v-if="panel.business.rejectionReason">Dôvod: {{ panel.business.rejectionReason }}</span>
+                    <span class="text-cb-ink"
+                        >Údaje upravte v profile podniku a napíšte nám na
+                        <a href="mailto:ahoj@campusbox.sk" class="font-bold underline">ahoj@campusbox.sk</a>, žiadosť prejdeme znova. Dovtedy vás
+                        študenti v appke neuvidia.</span
+                    >
+                </div>
+                <div
+                    v-else-if="!panel.business.approved"
                     class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[20px] bg-[rgba(255,122,26,.14)] px-4 py-3 text-sm font-semibold text-cb-or-dark"
                 >
                     <span class="font-black">◷</span>

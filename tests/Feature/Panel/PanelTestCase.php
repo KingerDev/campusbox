@@ -17,6 +17,8 @@ abstract class PanelTestCase extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Ukážkové účty zo seedera 2FA nemajú; povinnosť testuje TwoFactorTest.
+        config(['panel.two_factor_required' => false]);
         $this->seed(DemoSeeder::class);
         $this->business = Business::firstOrFail();
     }

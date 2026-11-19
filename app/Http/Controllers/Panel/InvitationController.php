@@ -63,6 +63,10 @@ class InvitationController extends Controller
 
     private function find(string $token): BusinessMember
     {
-        return BusinessMember::with('business')->where('invite_token', $token)->whereNull('joined_at')->firstOrFail();
+        $member = BusinessMember::with('business')->where('invite_token', $token)->whereNull('joined_at')->firstOrFail();
+        // Do ukážkového podniku sa pozvánkou vstúpiť nedá.
+        abort_if($member->business->is_demo, 404);
+
+        return $member;
     }
 }

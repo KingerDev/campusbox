@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Dish extends Model
 {
-    public const CATEGORIES = ['Teplé jedlo', 'Polievka', 'Pečivo', 'Dezert', 'Šalát', 'Pizza', 'Nápoj'];
+    public const CATEGORIES = ['Teplé jedlo', 'Polievka', 'Šalát', 'Pizza', 'Sendvič', 'Pečivo', 'Dezert', 'Nápoj'];
 
     public const ALLERGENS = ['lepok', 'vajcia', 'mlieko', 'orechy', 'arašidy', 'sója', 'zeler', 'horčica', 'sezam', 'ryby'];
 
@@ -21,6 +21,7 @@ class Dish extends Model
             'allergens' => 'array',
             'option_groups' => 'array',
             'vegetarian' => 'boolean',
+            'vegan' => 'boolean',
             'popular' => 'boolean',
         ];
     }

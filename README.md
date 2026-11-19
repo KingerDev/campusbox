@@ -80,6 +80,36 @@ php artisan campusbox:expire-orders                   # zruší nevydané objedn
 
 Nové objednávky panel zisťuje pollingom každých 15 s (`/panel/objednavky/nove`).
 
+### Demo podnik
+
+Tlačidlo „Vyskúšať demo“ (registrácia, prihlásenie, sekcia Pre podniky na webe) pošle `POST /panel/demo`. Návštevník dostane vlastnú kópiu Bistra Pod Urpínom (`DemoBusinessBuilder`) a je v nej prihlásený ako majiteľ cez dočasný účet.
+
+- Kópia je súkromná a žije 24 h (`PANEL_DEMO_HOURS`), potom ju zmaže `php artisan campusbox:prune-demos` (beží každú hodinu cez plánovač).
+- V deme sa neposielajú pozvánky, nenahrávajú obrázky a nedajú sa meniť nastavenia účtu.
+- Naraz môže existovať najviac `PANEL_DEMO_LIMIT` kópií (predvolene 300), založenie je obmedzené na 5 za 10 minút z jednej IP.
+
+### Dvojfaktorové overenie
+
+Kód z autentifikačnej appky (TOTP) a 8 jednorazových záložných kódov, nastavenie na `/settings/two-factor`.
+
+- Je dobrovoľné. Majiteľovi, manažérovi a správcovi ho panel odporúča pásom hore, kým si ho nezapnú.
+- S `PANEL_2FA_REQUIRED=true` v `.env` sa stane povinným: bez neho ich panel aj administrácia presmerujú na nastavenie.
+- Pri prihlásení nasleduje po hesle `/two-factor-challenge` (5 pokusov, platnosť 10 minút, ten istý kód nejde použiť dvakrát).
+
+### Administrácia (`/admin`)
+
+Overovanie zaregistrovaných podnikov. Prístup má len správca platformy (`users.is_admin`); dvojfaktorové overenie mu stránka odporúča (povinné je s `PANEL_2FA_REQUIRED=true`).
+
+```bash
+php artisan campusbox:make-admin vas@email.sk            # urobí z účtu správcu (neexistujúci účet vytvorí)
+php artisan campusbox:make-admin vas@email.sk --revoke   # odoberie práva
+```
+
+- Nová registrácia pošle e‑mail správcom a na `PANEL_NOTIFY_EMAIL` (ak je nastavený).
+- Na `/admin` sú podniky podľa stavu (čakajú / schválené / zamietnuté) s údajmi majiteľa, IČO, adresou a IBAN‑om; pri čakajúcich je vidno, ako dlho čakajú.
+- Schválenie aj zamietnutie (s dôvodom) pošle e‑mail majiteľovi; zamietnutý podnik vidí dôvod v paneli.
+- Študentom sa smú ukazovať len podniky z `Business::visibleToStudents()` (schválené a nie ukážkové).
+
 ## Testy
 
 ```bash
@@ -102,6 +132,6 @@ docker run -p 8080:8080 \
 - `.env` sa do obrazu nekopíruje, konfigurácia sa odovzdáva cez premenné prostredia.
 - Panel potrebuje databázu (MySQL): nastav `DB_CONNECTION=mysql`, `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
 - Fotky jedál a podnikov sa ukladajú do `storage/app/public` – priečinok `storage` musí byť na trvalom volume.
-- Automatické rušenie nevydaných objednávok potrebuje plánovač: `php artisan schedule:work` v samostatnom kontajneri alebo cron so `schedule:run`.
+- Automatické rušenie nevydaných objednávok a mazanie ukážkových podnikov potrebuje plánovač: `php artisan schedule:work` v samostatnom kontajneri alebo cron so `schedule:run`.
 - Pozvánky do tímu sa posielajú e‑mailom – nastav `MAIL_*` (napr. Brevo SMTP), inak sa len zapíšu do logu.
 - Migrácie sa automaticky nespúšťajú (`AUTORUN_ENABLED=false`), treba spustiť `php artisan migrate --force`.

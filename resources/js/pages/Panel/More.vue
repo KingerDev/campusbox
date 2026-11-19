@@ -11,8 +11,9 @@ const items = computed(() =>
         { label: 'Výplaty a štatistiky', route: 'panel.payouts', ability: 'payouts' },
         { label: 'Tím a pravomoci', route: 'panel.team', ability: 'team' },
         { label: 'Profil podniku', route: 'panel.profile', ability: 'profile' },
-        { label: 'Môj účet a heslo', route: 'profile.edit' },
-    ].filter((i) => !i.ability || can(i.ability)),
+        { label: 'Môj účet a heslo', route: 'profile.edit', account: true },
+        { label: 'Dvojfaktorové overenie', route: 'two-factor.edit', account: true },
+    ].filter((i) => (!i.ability || can(i.ability)) && !(i.account && panel.value.business.demo)),
 );
 </script>
 

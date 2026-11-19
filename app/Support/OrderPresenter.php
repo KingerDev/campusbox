@@ -24,6 +24,8 @@ class OrderPresenter
             'status' => $status->value,
             'statusLabel' => $statusLabel,
             'delivery' => $order->isDelivery(),
+            // Študentské menu má okno výdaja od–do; záchrana sa vydáva hneď.
+            'menu' => $order->items->contains('type', 'menu'),
             'address' => $order->delivery_address,
             'eta' => $order->eta,
             'reason' => $order->reason,

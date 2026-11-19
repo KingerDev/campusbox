@@ -25,7 +25,7 @@ function addMin(m: number) {
     const d = new Date(Date.now() + m * 60000);
     return d.getHours() + ':' + pad(d.getMinutes());
 }
-const slotStart = computed(() => panel.value.business.rescueSlot.split('–')[0]);
+const slotStart = computed(() => panel.value.business.menuSlot.split('–')[0]);
 
 const etaTime = computed<string | null>(() => {
     if (eta.value === 'none') return null;
@@ -34,16 +34,19 @@ const etaTime = computed<string | null>(() => {
     return addMin(eta.value);
 });
 
-const opts: [Eta, string][] = [
+const ALL_OPTS: [Eta, string][] = [
     [5, '5 min'],
     [10, '10 min'],
     [15, '15 min'],
     [20, '20 min'],
     [30, '30 min'],
-    ['start', 'Na začiatok výdaja'],
+    ['start', 'Na začiatok výdaja menu'],
     ['custom', 'Vlastný čas'],
     ['none', 'Nešpecifikovať'],
 ];
+
+// Začiatok výdaja má len študentské menu; záchrana sa vydáva od zverejnenia.
+const opts = computed(() => ALL_OPTS.filter(([v]) => v !== 'start' || order.value?.menu));
 
 /** Pri donáške vidí študent čas doručenia (príprava + ~20 min cesty). */
 const shownTime = computed(() => {

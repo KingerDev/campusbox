@@ -21,6 +21,8 @@ class ProfileController extends Controller
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // Majiteľ podniku si účet zmazať nemôže, stránka mu namiesto tlačidla vysvetlí prečo.
+            'ownedBusinesses' => $request->user()->ownedBusinessNames(),
         ]);
     }
 
@@ -50,6 +52,10 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        if ($user->ownedBusinessNames()) {
+            return back()->withErrors(['password' => 'Ste majiteľom podniku, účet sa preto zmazať nedá. Napíšte nám na ahoj@campusbox.sk.']);
+        }
 
         Auth::logout();
 
