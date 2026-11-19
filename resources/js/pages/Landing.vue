@@ -8,7 +8,7 @@ import LandingPhone, { type PhoneScreen } from '@/components/landing/LandingPhon
 import VideoPhone from '@/components/landing/VideoPhone.vue';
 import { useClock } from '@/composables/useClock';
 import { useLandingMotion } from '@/composables/useLandingMotion';
-import { storyMetrics, useScrollStory } from '@/composables/useScrollStory';
+import { MOBILE_BREAKPOINT, storyMetrics, useScrollStory } from '@/composables/useScrollStory';
 import { Head } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
 
@@ -124,14 +124,16 @@ const root = ref<HTMLElement | null>(null);
 const videoPhone = ref<InstanceType<typeof VideoPhone> | null>(null);
 useLandingMotion(root);
 
-// ---- Putujúci mobil (desktop ≥ 980 px) ----
+// ---- Putujúci mobil (desktop ≥ 980 px; na mobile < 640 px zmenšený, vedľa kariet) ----
 const story = ref<HTMLElement | null>(null);
 const mover = ref<HTMLElement | null>(null);
 const clipRect = ref<SVGRectElement | null>(null);
-const { desk, metrics, screen, route: storyRoute, dots, refresh } = useScrollStory(story, mover, clipRect);
-watch(desk, () => nextTick(refresh));
+const { desk, mob, heroPad, metrics, screen, route: storyRoute, dots, refresh } = useScrollStory(story, mover, clipRect);
+/** Putujúci mobil beží na desktope aj na mobile; medzi tým (tablet) je stránka statická. */
+const on = computed(() => desk.value || mob.value);
+watch([desk, mob], () => nextTick(refresh));
 
-const active = (k: string) => desk.value && screen.value === k;
+const active = (k: string) => on.value && screen.value === k;
 const phoneScreen = computed<PhoneScreen>(() => (screen.value === 'video' ? 'qr' : (screen.value as PhoneScreen)));
 
 /**
@@ -142,7 +144,8 @@ const phoneScreen = computed<PhoneScreen>(() => (screen.value === 'video' ? 'qr'
 const initialTransform = () => {
     const w = window.innerWidth;
     const pad = Math.min(48, Math.max(20, w * 0.04));
-    const span0 = Math.max(0, Math.min(w, 1200) - 2 * pad - 300);
+    const inner = Math.min(w, 1200) - 2 * pad;
+    const span0 = w < MOBILE_BREAKPOINT ? (inner - 300) / 2 : Math.max(0, inner - 300);
     const m = storyMetrics(window.innerHeight);
     return `translate3d(${Math.round(span0)}px,${-(612 - m.ph) / 2}px,0) rotate(-2deg)`;
 };
@@ -167,7 +170,7 @@ const playWithSound = () => {
     v.play().catch(() => {});
 };
 const openFullscreen = () => {
-    if (desk.value && overlayVideo.value) {
+    if (on.value && overlayVideo.value) {
         playWithSound();
         overlayVideo.value.requestFullscreen?.().catch(() => window.open('/video/campusbox-promo.mp4', '_blank'));
     } else if (videoPhone.value) videoPhone.value.fullscreen();
@@ -211,8 +214,8 @@ const glass = (k: string) =>
         </header>
 
         <div ref="story" data-lp-story class="relative">
-            <!-- Trasa za mobilom (desktop) -->
-            <svg v-if="desk" aria-hidden="true" class="pointer-events-none absolute left-0 top-0 z-[1] h-full w-full overflow-visible">
+            <!-- Trasa za putujúcim mobilom -->
+            <svg v-if="on" aria-hidden="true" class="pointer-events-none absolute left-0 top-0 z-[1] h-full w-full overflow-visible">
                 <defs>
                     <clipPath id="lpDone"><rect ref="clipRect" x="0" y="0" width="100%" height="0" /></clipPath>
                 </defs>
@@ -232,7 +235,7 @@ const glass = (k: string) =>
                     :key="i"
                     :cx="o.x"
                     :cy="o.y"
-                    r="7"
+                    :r="mob ? 5.5 : 7"
                     :fill="o.on ? '#DB3B22' : '#FFF6EA'"
                     :stroke="o.on ? '#FFF6EA' : 'rgba(42,29,22,.35)'"
                     stroke-width="3"
@@ -277,8 +280,14 @@ const glass = (k: string) =>
                             <div class="-ml-3 aspect-[140/236] h-[160px] flex-none"><IllustrationHero part="bag" /></div>
                         </div>
                     </div>
-                    <!-- Mobil / tablet: mobil priamo v bunke, maskot a taška pod ním -->
-                    <div v-else data-reveal="1" class="relative mb-20 flex min-h-[560px] justify-center sm:mb-0">
+                    <!-- Tablet: mobil priamo v bunke. Mobil: bunka je len miesto, odkiaľ putujúci mobil vyráža. Maskot a taška pod ním. -->
+                    <div
+                        v-else
+                        data-reveal="1"
+                        data-step-anchor
+                        class="relative mb-20 flex min-h-[560px] justify-center sm:mb-0"
+                        :style="mob ? { height: metrics.ph + 'px', minHeight: '0' } : undefined"
+                    >
                         <div
                             class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]"
                         >
@@ -289,7 +298,7 @@ const glass = (k: string) =>
                         >
                             <IllustrationHero part="bag" />
                         </div>
-                        <LandingPhone screen="home" mode="live" />
+                        <LandingPhone v-if="!mob" screen="home" mode="live" />
                     </div>
                 </div>
             </section>
@@ -305,7 +314,7 @@ const glass = (k: string) =>
                         </p>
                     </div>
                     <div class="lp-kat-grid">
-                        <div class="lp-step" data-step="zachrana" data-x=".5" data-dx="-24" data-s=".94" data-r="-3" data-reveal="1">
+                        <div class="lp-step" data-step="zachrana" data-side="l" data-mgo=".04,.34" data-x=".5" data-dx="-24" data-s=".94" data-r="-3" data-reveal="1">
                             <div
                                 class="lp-card lp-lift relative flex flex-col gap-3.5 rounded-[32px] bg-cb-red p-[clamp(24px,3vw,36px)] text-white"
                                 :style="{ boxShadow: ring('zachrana', '#DB3B22') }"
@@ -314,20 +323,20 @@ const glass = (k: string) =>
                                     >Teraz v appke →</span
                                 >
                                 <span class="text-sm font-bold opacity-85">Hlavná služba</span>
-                                <span class="text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Záchrana jedla</span>
-                                <span class="text-[16.5px] leading-normal [text-wrap:pretty]">
+                                <span class="lp-t text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Záchrana jedla</span>
+                                <span class="lp-b text-[16.5px] leading-normal [text-wrap:pretty]">
                                     Čo podniku na konci dňa zostane – bezpečné a čerstvé, len lacnejšie. Balíčky prekvapenia aj konkrétne jedlá.
                                 </span>
                                 <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-white/35 pt-4">
                                     <span class="flex flex-col">
                                         <span class="text-[13px] font-bold opacity-85">od</span>
-                                        <span class="text-[44px] font-black leading-none tracking-[-.04em]" data-count="9|1.9|2| €">1,90 €</span>
+                                        <span class="lp-price text-[44px] font-black leading-none tracking-[-.04em]" data-count="9|1.9|2| €">1,90 €</span>
                                     </span>
                                     <span class="text-sm font-bold">Večer · kým sa neminie</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="lp-step" data-step="menu" data-x=".5" data-dx="24" data-s=".94" data-r="3" data-reveal="1">
+                        <div class="lp-step" data-step="menu" data-side="r" data-x=".5" data-dx="24" data-s=".94" data-r="3" data-reveal="1">
                             <div
                                 class="lp-card lp-lift relative flex flex-col gap-3.5 rounded-[32px] bg-cb-mint p-[clamp(24px,3vw,36px)] text-cb-ink"
                                 :style="{ boxShadow: ring('menu', '#15803D') }"
@@ -336,14 +345,14 @@ const glass = (k: string) =>
                                     >← Teraz v appke</span
                                 >
                                 <span class="text-sm font-bold text-cb-green">Každý pracovný deň</span>
-                                <span class="text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Študentské menu</span>
-                                <span class="text-[16.5px] leading-normal text-[#2F3A2F] [text-wrap:pretty]">
+                                <span class="lp-t text-[clamp(30px,3vw,40px)] font-black leading-none tracking-[-.03em]">Študentské menu</span>
+                                <span class="lp-b text-[16.5px] leading-normal text-[#2F3A2F] [text-wrap:pretty]">
                                     Bežné obedové menu so študentskou cenou. Polievka a hlavné jedlo v podnikoch pri fakultách a internátoch.
                                 </span>
                                 <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3 border-t-2 border-[rgba(21,128,61,.25)] pt-4">
                                     <span class="flex flex-col">
                                         <span class="text-[13px] font-bold text-cb-green">od</span>
-                                        <span class="text-[44px] font-black leading-none tracking-[-.04em] text-cb-green" data-count="8.5|5.5|2| €"
+                                        <span class="lp-price text-[44px] font-black leading-none tracking-[-.04em] text-cb-green" data-count="8.5|5.5|2| €"
                                             >5,50 €</span
                                         >
                                     </span>
@@ -371,7 +380,7 @@ const glass = (k: string) =>
             <!-- Ako to funguje -->
             <section id="ako" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)] bg-cb-sand">
                 <div class="lp-wrap cb-section-pad flex flex-col gap-9">
-                    <div data-reveal="1" class="lp-head flex max-w-[760px] flex-col gap-3">
+                    <div data-reveal="1" class="lp-head lp-head-r flex max-w-[760px] flex-col gap-3">
                         <span class="cb-eyebrow">Ako to funguje</span>
                         <h2 class="cb-h2">Tri kroky od prednášky k jedlu.</h2>
                     </div>
@@ -381,6 +390,7 @@ const glass = (k: string) =>
                             :key="s.n"
                             class="lp-step"
                             :data-step="s.key"
+                            :data-side="s.dx < 0 ? 'r' : 'l'"
                             data-x=".5"
                             :data-dx="s.dx"
                             data-s=".9"
@@ -392,7 +402,7 @@ const glass = (k: string) =>
                                 :style="{ background: active(s.key) ? 'rgba(255,255,255,.94)' : 'rgba(255,255,255,.6)', boxShadow: glass(s.key) }"
                             >
                                 <div class="lp-ako-vis relative overflow-hidden" :style="{ background: s.bg }">
-                                    <component :is="s.art" v-if="desk" />
+                                    <component :is="s.art" v-if="on" />
                                     <div v-else class="absolute left-1/2 top-[26px] -ml-[150px] h-[612px] w-[300px] origin-top scale-[.62]">
                                         <LandingPhone :screen="s.key" mode="preview" />
                                     </div>
@@ -400,10 +410,10 @@ const glass = (k: string) =>
                                 <span class="lp-chip absolute right-4 top-4" aria-hidden="true" :style="{ opacity: active(s.key) ? 1 : 0 }">
                                     {{ s.arrow === 'right' ? 'Teraz v appke →' : '← Teraz v appke' }}
                                 </span>
-                                <div class="flex min-w-0 flex-1 flex-col justify-center gap-2 px-6 pb-[26px] pt-[22px]">
+                                <div class="lp-ako-txt flex min-w-0 flex-1 flex-col justify-center gap-2 px-6 pb-[26px] pt-[22px]">
                                     <span class="text-sm font-extrabold text-cb-red">{{ s.n }}</span>
-                                    <span class="text-2xl font-black leading-[1.1] tracking-[-.02em]">{{ s.title }}</span>
-                                    <span class="text-base leading-normal text-cb-brown [text-wrap:pretty]">{{ s.text }}</span>
+                                    <span class="lp-t text-2xl font-black leading-[1.1] tracking-[-.02em]">{{ s.title }}</span>
+                                    <span class="lp-b text-base leading-normal text-cb-brown [text-wrap:pretty]">{{ s.text }}</span>
                                 </div>
                             </div>
                         </div>
@@ -448,7 +458,7 @@ const glass = (k: string) =>
             <!-- Video -->
             <section id="video" class="scroll-mt-[72px] border-t-2 border-[rgba(120,80,50,.14)]">
                 <div class="lp-wrap lp-vid-grid cb-section-pad items-center">
-                    <div data-reveal="1" class="flex max-w-[480px] flex-col gap-4">
+                    <div data-reveal="1" class="lp-vid-txt flex max-w-[480px] flex-col gap-4">
                         <span class="cb-eyebrow">Video</span>
                         <h2 class="m-0 text-[clamp(34px,4.6vw,60px)] font-black leading-[.98] tracking-[-.04em] [text-wrap:balance]">
                             CampusBox za 30 sekúnd
@@ -461,13 +471,13 @@ const glass = (k: string) =>
                             <a
                                 :href="appUrl"
                                 @click="preventPlaceholder"
-                                class="flex h-[52px] items-center rounded-[26px] bg-cb-red px-6 text-base font-extrabold text-white no-underline hover:text-white"
+                                class="lp-vid-btn flex h-[52px] items-center rounded-[26px] bg-cb-red px-6 text-base font-extrabold text-white no-underline hover:text-white"
                             >
                                 Stiahnuť appku
                             </a>
                             <button
                                 type="button"
-                                class="flex h-[52px] items-center rounded-[26px] border-2 border-[rgba(42,29,22,.18)] px-[22px] text-base font-bold text-cb-ink transition-colors hover:border-cb-ink"
+                                class="lp-vid-btn flex h-[52px] items-center rounded-[26px] border-2 border-[rgba(42,29,22,.18)] px-[22px] text-base font-bold text-cb-ink transition-colors hover:border-cb-ink"
                                 @click="openFullscreen"
                             >
                                 Pozrieť na celú obrazovku
@@ -475,17 +485,17 @@ const glass = (k: string) =>
                         </div>
                     </div>
                     <div data-reveal="1" class="flex justify-center">
-                        <!-- Desktop: zástupné miesto, kam dosadne putujúci mobil -->
-                        <div v-if="desk" data-step="video" data-x="1" data-r="0" class="w-[300px] flex-none" :style="{ height: metrics.ph + 'px' }" />
+                        <!-- Zástupné miesto, kam dosadne putujúci mobil -->
+                        <div v-if="on" data-step="video" data-mgo=".84,1" data-x="1" data-r="0" class="w-[300px] flex-none" :style="{ height: metrics.ph + 'px' }" />
                         <VideoPhone v-else ref="videoPhone" src="/video/campusbox-promo.mp4" poster="/video/campusbox-promo-poster.jpg" />
                     </div>
                 </div>
             </section>
 
-            <!-- Overlay s putujúcim mobilom (desktop) -->
-            <div v-if="desk" class="pointer-events-none absolute inset-0 z-[5]" :aria-hidden="screen !== 'video'">
-                <div class="lp-wrap h-full pb-[clamp(56px,8vw,104px)]">
-                    <div class="sticky w-[300px]" :style="{ top: metrics.top + 'px', height: metrics.ph + 'px' }">
+            <!-- Overlay s putujúcim mobilom -->
+            <div v-if="on" class="pointer-events-none absolute inset-0 z-[5] overflow-x-clip" :aria-hidden="screen !== 'video'">
+                <div class="lp-wrap h-full pb-[clamp(56px,8vw,104px)]" :style="{ paddingTop: (mob ? heroPad : 0) + 'px' }">
+                    <div data-lp-stick class="sticky w-[300px]" :style="{ top: metrics.top + 'px', height: metrics.ph + 'px' }">
                         <div class="lp-phone-in">
                             <div
                                 ref="mover"
@@ -833,6 +843,79 @@ const glass = (k: string) =>
     to {
         opacity: 1;
         transform: none;
+    }
+}
+
+/* Mobil (rovnaký breakpoint ako MOBILE_BREAKPOINT): karta na jednej strane, na druhej miesto pre zmenšený putujúci mobil (36 % = MOBILE_PHONE_SHARE). */
+@media (max-width: 639.98px) {
+    .lp-kat-grid,
+    .lp-ako-grid {
+        gap: 44px;
+    }
+    .lp-step {
+        position: relative;
+        z-index: 2;
+    }
+    .lp-step[data-side='l'],
+    .lp-head {
+        margin-right: calc(36% + 12px);
+    }
+    .lp-step[data-side='r'],
+    .lp-head-r,
+    .lp-vid-txt {
+        margin-left: calc(36% + 12px);
+    }
+    .lp-head-r {
+        margin-right: 0;
+    }
+    .lp-head :deep(h2),
+    .lp-vid-txt h2 {
+        font-size: 29px;
+        line-height: 1;
+    }
+    .lp-head p,
+    .lp-vid-txt p {
+        font-size: 15px;
+    }
+    .lp-vid-btn {
+        box-sizing: border-box;
+        width: 100%;
+        height: auto;
+        min-height: 48px;
+        justify-content: center;
+        padding: 10px 14px;
+        font-size: 14.5px;
+        line-height: 1.2;
+        text-align: center;
+    }
+    .lp-step > .lp-card {
+        flex: none;
+        border-radius: 26px;
+    }
+    .lp-kat-grid .lp-card {
+        padding: 18px;
+        gap: 10px;
+    }
+    .lp-step .lp-t {
+        font-size: 23px;
+        line-height: 1.05;
+    }
+    .lp-ako-grid .lp-t {
+        font-size: 19px;
+        line-height: 1.12;
+    }
+    .lp-step .lp-b {
+        font-size: 14.5px;
+        line-height: 1.45;
+    }
+    .lp-step .lp-price {
+        font-size: 36px;
+    }
+    .lp-ako-vis {
+        height: 132px;
+    }
+    .lp-ako-txt {
+        padding: 16px 16px 20px;
     }
 }
 

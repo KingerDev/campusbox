@@ -2,6 +2,10 @@ import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 
 /** Breakpoint putujúceho mobilu – rovnaký v CSS (@media min-width: 980px) aj tu. */
 export const STORY_BREAKPOINT = 980;
+/** Pod touto šírkou (jeden stĺpec) putuje zmenšený mobil vedľa kariet. Rovnaký v CSS (max-width: 639.98px). */
+export const MOBILE_BREAKPOINT = 640;
+/** Šírka zmenšeného mobilu ako podiel vnútornej šírky stránky. Rovnaký podiel má CSS (.lp-step margin 36 %). */
+export const MOBILE_PHONE_SHARE = 0.36;
 
 export interface StoryMetrics {
     H: number;
@@ -26,6 +30,9 @@ interface Stop {
     s: number;
     r: number;
     k: string;
+    /** Úsek cesty k tejto zastávke (0–1), v ktorom sa mobil presúva; pred ním a po ňom stojí. */
+    g0: number;
+    g1: number;
 }
 
 /** Y prvku v súradniciach story cez offsetTop (reveal animácie posúvajú prvky transformom). */
@@ -45,6 +52,10 @@ function offsetTopIn(story: HTMLElement, el: HTMLElement) {
  */
 export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLElement | null>, clip: Ref<SVGRectElement | null>) {
     const desk = ref(typeof window !== 'undefined' ? window.innerWidth >= STORY_BREAKPOINT : true);
+    /** Mobilný režim: zmenšený mobil putuje vedľa kariet (karta na jednej strane, mobil na druhej). */
+    const mob = ref(false);
+    /** Mobil: odsadenie overlaya zhora, aby mobil začínal v hero pod textom a až potom sa prilepil. */
+    const heroPad = ref(0);
     const metrics = ref<StoryMetrics>(storyMetrics(typeof window !== 'undefined' ? window.innerHeight : 800));
     const screen = ref('home');
     const route = ref('');
@@ -53,11 +64,13 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
     let raf = 0;
     let routeSig = '';
     let zoom = 0;
+    let lastW = 0;
     const late: ReturnType<typeof setTimeout>[] = [];
 
     const move = () => {
         raf = 0;
-        if (window.innerWidth < STORY_BREAKPOINT) return;
+        const mobile = window.innerWidth < MOBILE_BREAKPOINT;
+        if (!mobile && window.innerWidth < STORY_BREAKPOINT) return;
         const st = story.value;
         const mv = mover.value;
         if (!st || !mv) return;
@@ -66,21 +79,44 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
 
         const cs = getComputedStyle(wrap);
         const padL = parseFloat(cs.paddingLeft);
-        const span = Math.max(0, wrap.clientWidth - padL - parseFloat(cs.paddingRight) - 300);
+        const inner = wrap.clientWidth - padL - parseFloat(cs.paddingRight);
+        const span = mobile ? inner - 300 : Math.max(0, inner - 300);
         const left0 = wrap.offsetLeft + padL;
-        const m = storyMetrics(window.innerHeight);
-        const mid = m.top + m.ph / 2 - st.getBoundingClientRect().top;
+        const m = metrics.value;
+        const stTop = st.getBoundingClientRect().top;
+        // Mobil: v hero ide mobil so stránkou (ešte nie je prilepený), preto sa stred berie zo skutočnej polohy.
+        const stick = mobile ? mv.closest<HTMLElement>('[data-lp-stick]') : null;
+        const mid = (stick ? stick.getBoundingClientRect().top : m.top) + m.ph / 2 - stTop;
+
+        if (mobile) {
+            const anchor = st.querySelector<HTMLElement>('[data-step-anchor]');
+            const hp = anchor ? offsetTopIn(st, anchor) : 0;
+            if (hp !== heroPad.value) {
+                heroPad.value = hp;
+                setTimeout(onScroll);
+            }
+        }
+        // Mobil: zmenšený telefón stojí pri okraji na opačnej strane ako karta ([data-side]); hero a video sú v strede.
+        const small = Math.max(0.3, (inner * MOBILE_PHONE_SHARE) / 300);
+        const edge = (300 - 300 * small) / 2;
 
         const ks: Stop[] = [...st.querySelectorAll<HTMLElement>('[data-step]')]
-            .map((el) => ({
-                y: offsetTopIn(st, el) + el.offsetHeight / 2,
-                h: el.offsetHeight,
-                x: +(el.dataset.x || 1),
-                dx: +(el.dataset.dx || 0),
-                s: +(el.dataset.s || 1),
-                r: +(el.dataset.r || 0),
-                k: el.dataset.step as string,
-            }))
+            .map((el) => {
+                const at = (mobile && el.querySelector<HTMLElement>('[data-step-anchor]')) || el;
+                const side = el.dataset.side;
+                const base = {
+                    y: offsetTopIn(st, at) + at.offsetHeight / 2,
+                    h: at.offsetHeight,
+                    r: +(el.dataset.r || 0),
+                    k: el.dataset.step as string,
+                };
+                // 20 % stojí, 60 % ide, 20 % stojí; na mobile si zastávka môže určiť vlastný úsek (data-mgo), aby mobil neprešiel cez text.
+                const go = (mobile && el.dataset.mgo ? el.dataset.mgo : '.2,.8').split(',').map(Number);
+                const all = { ...base, g0: go[0], g1: go[1] };
+                if (!mobile) return { ...all, x: +(el.dataset.x || 1), dx: +(el.dataset.dx || 0), s: +(el.dataset.s || 1) };
+                if (!side) return { ...all, x: 0.5, dx: 0, s: 1 };
+                return { ...all, x: side === 'l' ? 1 : 0, dx: side === 'l' ? edge : -edge, s: small / m.sc };
+            })
             .filter((k) => k.h > 0)
             .sort((p, q) => p.y - q.y);
         if (!ks.length) return;
@@ -95,7 +131,7 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
                     a = ks[i];
                     b = ks[i + 1];
                     const t = (mid - a.y) / Math.max(1, b.y - a.y);
-                    const u = Math.min(1, Math.max(0, (t - 0.2) / 0.6)); // 20 % stojí, 60 % ide, 20 % stojí
+                    const u = Math.min(1, Math.max(0, (t - b.g0) / (b.g1 - b.g0)));
                     e = u * u * (3 - 2 * u); // smoothstep
                     break;
                 }
@@ -130,8 +166,8 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         for (let i = 0; i < P.length - 1; i++) {
             const p = P[i];
             const q = P[i + 1];
-            const y1 = p.y + (q.y - p.y) * 0.2;
-            const y2 = p.y + (q.y - p.y) * 0.8;
+            const y1 = p.y + (q.y - p.y) * ks[i + 1].g0;
+            const y2 = p.y + (q.y - p.y) * ks[i + 1].g1;
             const c = (y2 - y1) / 3;
             d += ` L${p.x} ${y1.toFixed(1)} C${p.x} ${(y1 + c).toFixed(1)} ${q.x} ${(y2 - c).toFixed(1)} ${q.x} ${y2.toFixed(1)} L${q.x} ${q.y}`;
         }
@@ -152,8 +188,12 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         if (!raf) raf = requestAnimationFrame(move);
     };
     const onResize = () => {
-        desk.value = window.innerWidth >= STORY_BREAKPOINT;
-        metrics.value = storyMetrics(window.innerHeight);
+        const w = window.innerWidth;
+        desk.value = w >= STORY_BREAKPOINT;
+        mob.value = w < MOBILE_BREAKPOINT;
+        // Na mobile sa výška okna mení pri schovaní lišty prehliadača – veľkosť telefónu vtedy nechávame, inak by pri scrolle skákal.
+        if (!(mob.value && w === lastW)) metrics.value = storyMetrics(window.innerHeight);
+        lastW = w;
         onScroll();
     };
 
@@ -171,5 +211,5 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         late.forEach(clearTimeout);
     });
 
-    return { desk, metrics, screen, route, dots, refresh: onScroll };
+    return { desk, mob, heroPad, metrics, screen, route, dots, refresh: onScroll };
 }
