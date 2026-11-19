@@ -67,6 +67,48 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
     let lastW = 0;
     const late: ReturnType<typeof setTimeout>[] = [];
 
+    // Telefón za cieľom plynulo dobieha (exponenciálne tlmenie). Transform zapisuje jediná slučka, nie CSS prechod,
+    // ktorý by sa pri každej udalosti scrollu spúšťal odznova a na mobile sekal.
+    interface Pose {
+        x: number;
+        y: number;
+        rot: number;
+        sc: number;
+    }
+    const EASE_MS = 95;
+    let target: Pose | null = null;
+    let cur: Pose | null = null;
+    let glide = 0;
+    let glideAt = 0;
+
+    const paint = () => {
+        const mv = mover.value;
+        if (!mv || !cur) return;
+        const rel = zoom ? cur.sc / zoom : cur.sc;
+        mv.style.transform = `translate3d(${cur.x.toFixed(2)}px,${cur.y.toFixed(2)}px,0) rotate(${cur.rot.toFixed(2)}deg) scale(${rel.toFixed(4)})`;
+    };
+    const follow = (t: number) => {
+        glide = 0;
+        if (!cur || !target) return;
+        const dt = glideAt ? Math.min(64, t - glideAt) : 16.7;
+        glideAt = t;
+        const k = 1 - Math.exp(-dt / EASE_MS);
+        cur.x += (target.x - cur.x) * k;
+        cur.y += (target.y - cur.y) * k;
+        cur.rot += (target.rot - cur.rot) * k;
+        cur.sc += (target.sc - cur.sc) * k;
+        const near =
+            Math.abs(target.x - cur.x) < 0.2 &&
+            Math.abs(target.y - cur.y) < 0.2 &&
+            Math.abs(target.rot - cur.rot) < 0.03 &&
+            Math.abs(target.sc - cur.sc) < 0.0008;
+        if (near) cur = { ...target };
+        paint();
+        if (!near) glide = requestAnimationFrame(follow);
+        // Po dojazde ešte raz prepočítať – desktop vtedy prepne zoom na mierku zastávky.
+        else onScroll();
+    };
+
     const move = () => {
         raf = 0;
         const mobile = window.innerWidth < MOBILE_BREAKPOINT;
@@ -145,20 +187,27 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         const rot = a.r + (b.r - a.r) * e + Math.sign(xb - xa) * arc * Math.min(10, dist / 30);
         const sc = m.sc * (a.s + (b.s - a.s) * e) * (1 - 0.08 * arc * Math.min(1, dist / 200));
         const y = -(612 - m.ph) / 2 - arc * Math.min(34, dist / 8);
-        // Mierku zastávky nesie `zoom` (ostré vykreslenie), transform len zvyšok počas presunu – v pokoji presne 1.
-        // Zoom sa mení iba keď mobil stojí na zastávke, aby nebolo vidieť skok veľkosti.
+        // Mierku nesie `zoom` (ostré vykreslenie), transform len zvyšok.
+        // Mobil: zoom je stále na najväčšej zastávke a telefón sa iba zmenšuje – zmena zoomu prekresľuje celý telefón a pri scrolle by sekala.
+        // Desktop: zoom sa prepne na mierku zastávky, až keď na nej telefón stojí.
         const zm = mv.querySelector<HTMLElement>('[data-lp-zoom]');
-        if (zm && (arc < 0.02 || !zoom)) {
-            const z = +(m.sc * (e < 0.5 ? a.s : b.s)).toFixed(3);
-            if (z !== zoom) {
+        if (zm) {
+            const settled = !!cur && Math.abs(cur.sc - sc) < 0.002;
+            const z = mobile ? +(m.sc * Math.max(...ks.map((k) => k.s))).toFixed(3) : +(m.sc * (e < 0.5 ? a.s : b.s)).toFixed(3);
+            if (z !== zoom && (mobile || !zoom || (arc < 0.02 && settled))) {
                 zoom = z;
                 zm.style.zoom = String(z);
-                mv.style.transition = 'none';
-                setTimeout(() => (mv.style.transition = ''));
+                paint();
             }
         }
-        const rel = zoom ? sc / zoom : sc;
-        mv.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg) scale(${rel.toFixed(4)})`;
+        target = { x, y, rot, sc };
+        if (!cur) {
+            cur = { ...target };
+            paint();
+        } else if (!glide && (cur.x !== x || cur.y !== y || cur.rot !== rot || cur.sc !== sc)) {
+            glideAt = 0;
+            glide = requestAnimationFrame(follow);
+        }
 
         // Trasa: tie isté body a easing ako mobil, bodky vedú presne pod jeho stredom.
         const P = ks.map((k) => ({ x: Math.round(left0 + X(k) + 150), y: Math.round(k.y) }));
@@ -208,6 +257,7 @@ export function useScrollStory(story: Ref<HTMLElement | null>, mover: Ref<HTMLEl
         window.removeEventListener('resize', onResize);
         window.removeEventListener('scroll', onScroll, { capture: true });
         cancelAnimationFrame(raf);
+        cancelAnimationFrame(glide);
         late.forEach(clearTimeout);
     });
 

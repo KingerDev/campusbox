@@ -507,7 +507,7 @@ const glass = (k: string) =>
                             <div
                                 ref="mover"
                                 data-lp-mover
-                                class="relative h-[612px] w-[300px] origin-center [transition:transform_.45s_cubic-bezier(.22,.8,.3,1)]"
+                                class="relative h-[612px] w-[300px] origin-center [will-change:transform]"
                             >
                                 <!-- Stála mierka cez zoom: prehliadač telefón vykreslí ostro v cieľovej veľkosti (scale v transforme by ho len roztiahol z bitmapy). -->
                                 <div class="absolute inset-0 flex items-center justify-center">
