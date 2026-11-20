@@ -224,7 +224,8 @@ const glass = (k: string) =>
 
         <div ref="story" data-lp-story class="relative">
             <!-- Trasa za putujúcim mobilom -->
-            <svg v-if="on" aria-hidden="true" class="pointer-events-none absolute left-0 top-0 z-[1] h-full w-full overflow-visible">
+            <!-- Vlastná vrstva (will-change): trasa sa pri scrolle prekresľuje každý snímok a bez nej by Safari na iPhone prekresľoval celú stránku pod ňou. -->
+            <svg v-if="on" aria-hidden="true" class="pointer-events-none absolute left-0 top-0 z-[1] h-full w-full overflow-visible [will-change:transform]">
                 <defs>
                     <clipPath id="lpDone"><rect ref="clipRect" x="0" y="0" width="100%" height="0" /></clipPath>
                 </defs>
@@ -835,6 +836,12 @@ const glass = (k: string) =>
 }
 .lp-march {
     animation: lpMarch 1.1s linear infinite;
+}
+/* Mobil: pochodujúce bodky by prekresľovali trasu každý snímok aj bez scrollu – na iPhone to seká putujúci mobil. */
+@media (max-width: 639.98px) {
+    .lp-march {
+        animation: none;
+    }
 }
 .lp-phone-in {
     animation: lpPhoneIn 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both;
