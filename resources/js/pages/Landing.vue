@@ -9,6 +9,7 @@ import VideoPhone from '@/components/landing/VideoPhone.vue';
 import { useClock } from '@/composables/useClock';
 import { useDemo } from '@/composables/useDemo';
 import { useLandingMotion } from '@/composables/useLandingMotion';
+import { usePauseOffscreen } from '@/composables/usePauseOffscreen';
 import { MOBILE_BREAKPOINT, storyMetrics, useScrollStory } from '@/composables/useScrollStory';
 import { Head } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
@@ -126,6 +127,7 @@ const toggleFaq = (i: number) => (openFaq.value = openFaq.value === i ? -1 : i);
 const root = ref<HTMLElement | null>(null);
 const videoPhone = ref<InstanceType<typeof VideoPhone> | null>(null);
 useLandingMotion(root);
+usePauseOffscreen(root);
 
 // ---- Putujúci mobil (desktop ≥ 980 px; na mobile < 640 px zmenšený, vedľa kariet) ----
 const story = ref<HTMLElement | null>(null);

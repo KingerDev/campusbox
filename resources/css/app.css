@@ -162,6 +162,8 @@ html {
 @keyframes cbTw { 0%,100% { transform: scale(.6); opacity: .5 } 50% { transform: scale(1.1); opacity: 1 } }
 @keyframes cbDash2 { to { stroke-dashoffset: -22 } }
 @keyframes cbRide { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-2px) } }
+/* Ilustrácia mimo obrazovky: animácie stoja, aby nezaťažovali scroll (usePauseOffscreen). */
+.cb-paused * { animation-play-state: paused !important }
 
 /* ---------- CampusBox panel pre podniky ---------- */
 @layer components {
