@@ -290,7 +290,7 @@ const glass = (k: string) =>
                             <div class="-ml-3 aspect-[140/236] h-[160px] flex-none"><IllustrationHero part="bag" /></div>
                         </div>
                     </div>
-                    <!-- Tablet: mobil priamo v bunke. Mobil: bunka je len miesto, odkiaľ putujúci mobil vyráža. Maskot a taška pod ním. -->
+                    <!-- Tablet: mobil priamo v bunke. Mobil: bunka je len miesto, odkiaľ putujúci mobil vyráža. Maskot a taška pod ním (na mobile z-[2], aby putujúci mobil v overlayi z-[5] išiel ponad ne). -->
                     <div
                         v-else
                         data-reveal="1"
@@ -299,12 +299,12 @@ const glass = (k: string) =>
                         :style="mob ? { height: metrics.ph + 'px', minHeight: '0' } : undefined"
                     >
                         <div
-                            class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]"
+                            class="pointer-events-none absolute -bottom-[104px] right-[min(calc(50%+122px),calc(100%-92px))] z-[2] sm:z-10 aspect-[160/245] w-[92px] sm:-bottom-12 sm:right-[min(calc(50%+122px),calc(100%-112px))] sm:w-[112px]"
                         >
                             <IllustrationHero part="mascot" />
                         </div>
                         <div
-                            class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]"
+                            class="pointer-events-none absolute -bottom-[100px] left-[min(calc(50%+126px),calc(100%-84px))] z-[2] sm:z-10 aspect-[140/236] w-[84px] sm:-bottom-12 sm:left-[min(calc(50%+126px),calc(100%-100px))] sm:w-[100px]"
                         >
                             <IllustrationHero part="bag" />
                         </div>
