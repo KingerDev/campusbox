@@ -503,7 +503,8 @@ const glass = (k: string) =>
             </section>
 
             <!-- Overlay s putujúcim mobilom -->
-            <div v-if="on" class="pointer-events-none absolute inset-0 z-[5] overflow-x-clip" :aria-hidden="screen !== 'video'">
+            <!-- Na mobile bez orezania: Safari na iPhone s `overflow-x: clip` na predkovi neposúva prilepený prvok plynulo a mobil pri scrolle seká. -->
+            <div v-if="on" class="pointer-events-none absolute inset-0 z-[5]" :class="mob ? '' : 'overflow-x-clip'" :aria-hidden="screen !== 'video'">
                 <div class="lp-wrap h-full pb-[clamp(56px,8vw,104px)]" :style="{ paddingTop: (mob ? heroPad : 0) + 'px' }">
                     <div data-lp-stick class="sticky w-[300px]" :style="{ top: metrics.top + 'px', height: metrics.ph + 'px' }">
                         <div class="lp-phone-in">
